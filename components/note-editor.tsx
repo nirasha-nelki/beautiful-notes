@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react"
-import { ImageIcon, X, GripVertical, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { ImageIcon, X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ImageBlock {
@@ -12,6 +12,7 @@ interface ImageBlock {
 }
 
 interface PageContent {
+  id?: string
   title: string
   content: string
   images: ImageBlock[]
@@ -216,7 +217,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
         >
-          <ImageIcon className="w-4 h-4" />
+          <ImagePlus className="w-4 h-4" />
           <span className="text-sm">Add Image</span>
         </button>
         <input

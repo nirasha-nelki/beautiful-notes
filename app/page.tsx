@@ -19,6 +19,7 @@ interface ImageBlock {
 }
 
 interface PageContent {
+  id?: string
   title: string
   content: string
   images: ImageBlock[]
@@ -121,11 +122,12 @@ export default function NotesApp() {
   }
 
   const handleNewNote = () => {
+    const now = new Date()
     const newNote: Note = {
       id: `note-${Date.now()}`,
       title: "",
       preview: "",
-      date: "Just now",
+      date: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       templateId: selectedTemplate.id,
       accentColor: selectedTemplate.accentColor,
     }
@@ -164,7 +166,7 @@ export default function NotesApp() {
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <h1 className="text-lg font-semibold text-foreground tracking-tight">
-              Muse Notes
+              Beautiful Notes
             </h1>
           </div>
         </div>
