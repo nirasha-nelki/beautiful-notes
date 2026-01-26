@@ -130,3 +130,97 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { note } = await req.json()
+
+    // 1. Update note metadata
+    await supabase.from('notes').update({
+      title: note.title,
+      preview: note.preview,
+      date: note.date,
+      template_id: note.templateId,
+      accent_color: note.accentColor
+    }).eq('id', note.id)
+
+    // 2. Fetch existing pages
+    const { data: pages } = await supabase
+      .from('pages')
+      .select('id')
+      .eq('note_id', note.id)
+
+    // 3. Delete images from storage
+    for (const page of pages ?? []) {
+      const { data: images } = await supabase
+        .from('note_images')
+        .select('storage_path')
+        .eq('page_id', page.id)
+
+      if (images?.length) {
+        await supabase.storage
+          .from('note-images')
+          .remove(images.map(i => i.storage_path))
+      }
+    }
+
+    // 4. Delete DB records
+    await supabase.from('note_images').delete()
+      .in('page_id', pages?.map(p => p.id) ?? [])
+
+    await supabase.from('pages').delete()
+      .eq('note_id', note.id)
+
+    // 5. Re-insert pages + images (same logic as POST)
+    for (const page of note.pages ?? []) {
+      const { data: pageRow } = await supabase
+        .from('pages')
+        .insert({
+          note_id: note.id,
+          title: page.title,
+          content: page.content
+        })
+        .select()
+        .single()
+
+      for (const img of page.images ?? []) {
+        let storagePath = img.url
+
+        if (img.url.startsWith('data:image')) {
+          const buffer = base64ToBuffer(img.url)
+          storagePath = `${note.id}/${img.id}.jpg`
+
+          await supabase.storage
+            .from('note-images')
+            .upload(storagePath, buffer, {
+              upsert: true,
+              contentType: 'image/jpeg'
+            })
+        } else if (img.url.includes('supabase')) {
+          // Extract storage path from public URL
+          const urlObj = new URL(img.url)
+          const pathParts = urlObj.pathname.split('/note-images/')
+          storagePath = pathParts[1] || img.url
+        }
+
+        await supabase.from('note_images').insert({
+          id: img.id,
+          page_id: pageRow.id,
+          storage_path: storagePath,
+          x: img.position.x,
+          y: img.position.y
+        })
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json(
+      { error: 'Update failed' },
+      { status: 500 }
+    )
+  }
+}
+
+

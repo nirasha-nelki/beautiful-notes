@@ -88,33 +88,38 @@ export default function NotesApp() {
     // Get current content from editor
     const currentPages = editorRef.current.getPages()
     
-    // Update the active note with current content
-    const updatedNotes = notes.map(note => {
-      if (note.id === activeNoteId) {
-        // Extract preview from first page
-        const preview = currentPages[0]?.content.slice(0, 50) || "No content"
-        const title = currentPages[0]?.title || "Untitled Note"
-        
-        return {
-          ...note,
-          title,
-          preview,
-          pages: currentPages,
-        }
-      }
-      return note
-    })
+    // Find the current note
+    const currentNote = notes.find(n => n.id === activeNoteId)
+    if (!currentNote) return
     
+    // Extract preview from first page
+    const preview = currentPages[0]?.content.slice(0, 50) || "No content"
+    const title = currentPages[0]?.title || "Untitled Note"
+    
+    const updatedNote = {
+      ...currentNote,
+      title,
+      preview,
+      pages: currentPages,
+    }
+    
+    // Update local state
+    const updatedNotes = notes.map(note => 
+      note.id === activeNoteId ? updatedNote : note
+    )
     setNotes(updatedNotes)
     
-    // Save to file
+    // Check if this is a new note (has pages property or not)
+    const isExistingNote = currentNote.pages !== undefined
+    
+    // Save to database
     try {
       await fetch('/api/notes', {
-        method: 'POST',
+        method: isExistingNote ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ notes: updatedNotes }),
+        body: JSON.stringify(isExistingNote ? { note: updatedNote } : { notes: [updatedNote] }),
       })
     } catch (error) {
       console.error('Failed to save note:', error)
