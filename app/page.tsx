@@ -18,11 +18,25 @@ interface ImageBlock {
   position: { x: number; y: number }
 }
 
+interface DrawingPoint {
+  x: number
+  y: number
+}
+
+interface DrawingStroke {
+  id: string
+  points: DrawingPoint[]
+  color: string
+  width: number
+  tool: 'pen' | 'highlighter' | 'eraser'
+}
+
 interface PageContent {
   id?: string
   title: string
   content: string
   images: ImageBlock[]
+  drawings?: DrawingStroke[]
 }
 
 interface Note {

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react"
-import { ImageIcon, X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
+import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ImageBlock {
@@ -11,11 +11,25 @@ interface ImageBlock {
   position: { x: number; y: number }
 }
 
+interface DrawingPoint {
+  x: number
+  y: number
+}
+
+interface DrawingStroke {
+  id: string
+  points: DrawingPoint[]
+  color: string
+  width: number
+  tool: 'pen' | 'highlighter' | 'eraser'
+}
+
 interface PageContent {
   id?: string
   title: string
   content: string
   images: ImageBlock[]
+  drawings?: DrawingStroke[]
 }
 
 interface NoteEditorProps {
@@ -37,12 +51,19 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   const [pages, setPages] = useState<PageContent[]>(
     initialPages && initialPages.length > 0 
       ? initialPages 
-      : [{ title: "", content: "", images: [] }]
+      : [{ title: "", content: "", images: [], drawings: [] }]
   )
   const [currentPage, setCurrentPage] = useState(0)
   const [draggedImage, setDraggedImage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isDrawingMode, setIsDrawingMode] = useState(false)
+  const [drawingTool, setDrawingTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen')
+  const [drawingColor, setDrawingColor] = useState('#000000')
+  const [strokeWidth, setStrokeWidth] = useState(2)
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [currentStroke, setCurrentStroke] = useState<DrawingPoint[]>([])
   const editorRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Sync with initialPages when they change (switching notes)
@@ -52,7 +73,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
       setCurrentPage(0)
     } else if (initialPages !== undefined) {
       // Reset to blank page for new notes
-      setPages([{ title: "", content: "", images: [] }])
+      setPages([{ title: "", content: "", images: [], drawings: [] }])
       setCurrentPage(0)
     }
   }, [initialPages])
@@ -63,13 +84,62 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   }))
 
   // Get current page data
-  const { title, content, images } = pages[currentPage]
+  const { title, content, images, drawings = [] } = pages[currentPage]
 
   const updateCurrentPage = (updates: Partial<PageContent>) => {
     setPages((prev) =>
       prev.map((page, i) => (i === currentPage ? { ...page, ...updates } : page))
     )
   }
+
+  // Redraw canvas when page changes or drawings update
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // Set canvas size to match container
+    const rect = editorRef.current?.getBoundingClientRect()
+    if (rect) {
+      canvas.width = rect.width
+      canvas.height = rect.height
+    }
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // Redraw all strokes
+    drawings.forEach((stroke) => {
+      if (stroke.points.length < 2) return
+
+      ctx.beginPath()
+      ctx.strokeStyle = stroke.color
+      ctx.lineWidth = stroke.width
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      
+      if (stroke.tool === 'highlighter') {
+        ctx.globalAlpha = 0.3
+      } else if (stroke.tool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out'
+      } else {
+        ctx.globalAlpha = 1
+        ctx.globalCompositeOperation = 'source-over'
+      }
+
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
+      }
+      ctx.stroke()
+
+      // Reset composite operation
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = 'source-over'
+    })
+  }, [drawings, currentPage])
 
   const setTitle = (newTitle: string) => updateCurrentPage({ title: newTitle })
   const setContent = (newContent: string) => updateCurrentPage({ content: newContent })
@@ -87,7 +157,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   }
 
   const addNewPage = () => {
-    setPages((prev) => [...prev, { title: "", content: "", images: [] }])
+    setPages((prev) => [...prev, { title: "", content: "", images: [], drawings: [] }])
     setCurrentPage(pages.length)
   }
 
@@ -96,6 +166,91 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
       setCurrentPage(pageIndex)
     }
   }
+
+  // Drawing handlers
+  const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingMode) return
+
+    setIsDrawing(true)
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const point = 'touches' in e 
+      ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
+      : { x: e.clientX - rect.left, y: e.clientY - rect.top }
+
+    setCurrentStroke([point])
+  }, [isDrawingMode])
+
+  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !isDrawingMode) return
+
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const point = 'touches' in e 
+      ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
+      : { x: e.clientX - rect.left, y: e.clientY - rect.top }
+
+    setCurrentStroke((prev) => [...prev, point])
+
+    // Draw current stroke in real-time
+    const ctx = canvas.getContext('2d')
+    if (!ctx || currentStroke.length === 0) return
+
+    ctx.strokeStyle = drawingColor
+    ctx.lineWidth = strokeWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    if (drawingTool === 'highlighter') {
+      ctx.globalAlpha = 0.3
+    } else if (drawingTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out'
+    } else {
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = 'source-over'
+    }
+
+    ctx.beginPath()
+    const lastPoint = currentStroke[currentStroke.length - 1]
+    ctx.moveTo(lastPoint.x, lastPoint.y)
+    ctx.lineTo(point.x, point.y)
+    ctx.stroke()
+
+    ctx.globalAlpha = 1
+    ctx.globalCompositeOperation = 'source-over'
+  }, [isDrawing, isDrawingMode, currentStroke, drawingColor, strokeWidth, drawingTool])
+
+  const endDrawing = useCallback(() => {
+    if (!isDrawing || currentStroke.length === 0) {
+      setIsDrawing(false)
+      setCurrentStroke([])
+      return
+    }
+
+    // Save the stroke
+    const newStroke: DrawingStroke = {
+      id: `stroke-${Date.now()}`,
+      points: currentStroke,
+      color: drawingColor,
+      width: strokeWidth,
+      tool: drawingTool,
+    }
+
+    updateCurrentPage({ 
+      drawings: [...drawings, newStroke] 
+    })
+
+    setIsDrawing(false)
+    setCurrentStroke([])
+  }, [isDrawing, currentStroke, drawingColor, strokeWidth, drawingTool, drawings])
+
+  const clearDrawings = useCallback(() => {
+    updateCurrentPage({ drawings: [] })
+  }, [])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -212,26 +367,96 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
-        >
-          <ImagePlus className="w-4 h-4" />
-          <span className="text-sm">Add Image</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-        <div
-          className="w-3 h-3 rounded-full"
-          style={{ backgroundColor: template.accentColor }}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+          >
+            <ImagePlus className="w-4 h-4" />
+            <span className="text-sm hidden sm:inline">Add Image</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <div className="w-px h-6 bg-border" />
+          
+          {/* Drawing Mode Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsDrawingMode(!isDrawingMode)}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+              isDrawingMode 
+                ? "bg-primary text-primary-foreground" 
+                : "bg-secondary text-secondary-foreground hover:bg-accent"
+            )}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+              <path d="M2 2l7.586 7.586" />
+              <circle cx="11" cy="11" r="2" />
+            </svg>
+            <span className="text-sm hidden sm:inline">Draw</span>
+          </button>
+        </div>
+
+        {/* Drawing Tools */}
+        {isDrawingMode && (
+          <div className="flex items-center gap-2">
+            <select
+              value={drawingTool}
+              onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
+              className="px-2 py-1 text-sm rounded bg-secondary border border-border"
+            >
+              <option value="pen">Pen</option>
+              <option value="highlighter">Highlighter</option>
+              <option value="eraser">Eraser</option>
+            </select>
+            
+            <input
+              type="color"
+              value={drawingColor}
+              onChange={(e) => setDrawingColor(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer"
+              disabled={drawingTool === 'eraser'}
+            />
+            
+            <select
+              value={strokeWidth}
+              onChange={(e) => setStrokeWidth(Number(e.target.value))}
+              className="px-2 py-1 text-sm rounded bg-secondary border border-border"
+            >
+              <option value="1">Thin</option>
+              <option value="2">Normal</option>
+              <option value="4">Medium</option>
+              <option value="8">Thick</option>
+              <option value="16">Bold</option>
+            </select>
+            
+            <button
+              type="button"
+              onClick={clearDrawings}
+              className="px-3 py-1.5 text-sm rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {!isDrawingMode && (
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: template.accentColor }}
+          />
+        )}
       </div>
 
       {/* Editor Area */}
@@ -265,10 +490,27 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           </div>
         )}
 
+        {/* Canvas Layer for Drawing */}
+        <canvas
+          ref={canvasRef}
+          className={cn(
+            "absolute inset-0 z-[2]",
+            isDrawingMode ? "cursor-crosshair" : "pointer-events-none"
+          )}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={endDrawing}
+          onMouseLeave={endDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={endDrawing}
+        />
+
         {/* Note Content */}
         <div className={cn(
           "p-6 h-full flex flex-col relative z-[1]",
-          template.isCustom && "pt-20 pb-24 px-12"
+          template.isCustom && "pt-20 pb-24 px-12",
+          isDrawingMode && "pointer-events-none"
         )}>
           <input
             type="text"
