@@ -224,3 +224,45 @@ export async function PUT(req: NextRequest) {
 }
 
 
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const noteId = searchParams.get('id')
+
+    if (!noteId) {
+      return NextResponse.json(
+        { error: 'Note ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // 1. Get page IDs for this note
+    const { data: pages } = await supabase
+      .from('pages')
+      .select('id')
+      .eq('note_id', noteId)
+
+    // 2. Find image paths
+    const { data: images } = await supabase
+      .from('note_images')
+      .select('storage_path')
+      .in('page_id', pages?.map(p => p.id) ?? [])
+
+    if (images?.length) {
+      await supabase.storage
+        .from('note-images')
+        .remove(images.map(i => i.storage_path))
+    }
+
+    // 3. Delete note (cascade removes pages & images)
+    await supabase.from('notes').delete().eq('id', noteId)
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json(
+      { error: 'Delete failed' },
+      { status: 500 }
+    )
+  }
+}
