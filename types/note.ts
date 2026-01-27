@@ -15,4 +15,5 @@ export interface NotesListProps {
   activeNoteId: string | null
   onSelectNote: (id: string) => void
   onNewNote: () => void
+  onDeleteNote: (id: string) => void
 }

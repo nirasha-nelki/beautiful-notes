@@ -87,11 +87,30 @@ export const useNotes = () => {
         setShowSidebar(false)
         }
 
+    const handleDeleteNote = async (noteId: string) => {
+        try {
+        await fetch(`/api/notes?id=${noteId}`, {
+            method: 'DELETE',
+        })
+        
+        // Remove from local state
+        const updatedNotes = notes.filter(note => note.id !== noteId)
+        setNotes(updatedNotes)
+        
+        // If deleted note was active, select the first remaining note or null
+        if (activeNoteId === noteId) {
+            setActiveNoteId(updatedNotes.length > 0 ? updatedNotes[0].id : null)
+        }
+        } catch (error) {
+        console.error('Failed to delete note:', error)
+        }
+    }
+
     useEffect(() => {
         loadNotes()
     }, [])
 
     return { notes, 
-        setNotes, activeNoteId, setActiveNoteId, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote }
+        setNotes, activeNoteId, setActiveNoteId, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote, handleDeleteNote }
 
 }

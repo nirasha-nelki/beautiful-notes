@@ -33,6 +33,7 @@ export default function NotesApp() {
     showSidebar,
     setShowSidebar,
     handleNewNote,
+    handleDeleteNote,
   } = useNotes()
 
   const handleAddCustomTemplate = (template: Template) => {
@@ -141,6 +142,7 @@ export default function NotesApp() {
               setShowSidebar(false)
             }}
             onNewNote={handleNewNote}
+            onDeleteNote={handleDeleteNote}
           />
         </div>
       </div>
