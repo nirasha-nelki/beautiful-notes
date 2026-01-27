@@ -156,7 +156,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
               <path d="M2 2l7.586 7.586" />
               <circle cx="11" cy="11" r="2" />
             </svg>
-            <span className="text-sm hidden sm:inline">Draw</span>
+            {/* <span className="text-sm hidden sm:inline">Draw</span> */}
           </button>
         </div>
 

@@ -2,22 +2,8 @@
 
 import { Plus, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NotesListProps } from "@/types/note"
 
-interface Note {
-  id: string
-  title: string
-  preview: string
-  date: string
-  templateId: string
-  accentColor: string
-}
-
-interface NotesListProps {
-  notes: Note[]
-  activeNoteId: string | null
-  onSelectNote: (id: string) => void
-  onNewNote: () => void
-}
 
 export function NotesList({
   notes,

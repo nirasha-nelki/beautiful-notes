@@ -2,16 +2,12 @@
 
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FontOption, FontPickerProps } from "@/types/fonts"
 
 // export type FontStyle = "caveat" | "playfair" | "inter" | "merriweather" | "jetbrains" | "poppins"
-export type FontStyle = "handwriting" | "serif" | "sans"
 
-interface FontOption {
-  id: FontStyle
-  name: string
-  preview: string
-  className: string
-}
+
+
 
 export const fontOptions: FontOption[] = [
   {
@@ -88,12 +84,6 @@ export const fontOptions: FontOption[] = [
 //   },
 // ]
 
-
-
-interface FontPickerProps {
-  selectedFont: FontStyle
-  onSelect: (font: FontStyle) => void
-}
 
 export function FontPicker({ selectedFont, onSelect }: FontPickerProps) {
   return (

@@ -5,17 +5,7 @@ import React from "react"
 import { useRef } from "react"
 import { Check, Upload, X, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-export interface Template {
-  id: string
-  name: string
-  bgClass: string
-  lineStyle: "plain" | "lined" | "dotted" | "grid"
-  accentColor: string
-  preview: string
-  isCustom?: boolean
-  customImageUrl?: string
-}
+import { Template, TemplatePickerProps } from "@/types/template"
 
 export const templates: Template[] = [
   {
@@ -68,13 +58,7 @@ export const templates: Template[] = [
   },
 ]
 
-interface TemplatePickerProps {
-  selectedTemplate: Template
-  onSelect: (template: Template) => void
-  customTemplates: Template[]
-  onAddCustomTemplate: (template: Template) => void
-  onRemoveCustomTemplate: (id: string) => void
-}
+
 
 export function TemplatePicker({
   selectedTemplate,

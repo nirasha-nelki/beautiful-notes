@@ -9,3 +9,10 @@ export interface Note {
   accentColor: string
   pages?: PageContent[]
 }
+
+export interface NotesListProps {
+  notes: Note[]
+  activeNoteId: string | null
+  onSelectNote: (id: string) => void
+  onNewNote: () => void
+}

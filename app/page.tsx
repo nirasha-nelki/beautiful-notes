@@ -6,14 +6,13 @@ import { NoteEditor } from "@/components/note-editor"
 import {
   TemplatePicker,
   templates,
-  type Template,
 } from "@/components/template-picker"
-import { FontPicker, type FontStyle } from "@/components/font-picker"
+import { FontPicker} from "@/components/font-picker"
 import { NotesList } from "@/components/notes-list"
 import { cn } from "@/lib/utils"
-import { PageContent } from "@/types/page"
-import { Note } from "@/types/note"
 import { useNotes } from "@/hooks/useNotes"
+import { FontStyle } from "@/types/fonts"
+import { Template } from "@/types/template"
 
 export default function NotesApp() {
 
