@@ -3,6 +3,7 @@
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+// export type FontStyle = "caveat" | "playfair" | "inter" | "merriweather" | "jetbrains" | "poppins"
 export type FontStyle = "handwriting" | "serif" | "sans"
 
 interface FontOption {
@@ -32,6 +33,62 @@ export const fontOptions: FontOption[] = [
     className: "font-sans text-sm",
   },
 ]
+
+// export const fontOptions: FontOption[] = [
+//   {
+//     id: "caveat",
+//     name: "Caveat",
+//     preview: "Thoughts written by hand",
+//     className: "font-[var(--font-caveat)] text-xl tracking-wide",
+//   },
+//   {
+//     id: "playfair",
+//     name: "Playfair Display",
+//     preview: "Timeless elegance",
+//     className: "font-[var(--font-playfair)] text-base leading-relaxed",
+//   },
+//   {
+//     id: "inter",
+//     name: "Inter",
+//     preview: "Clear & focused",
+//     className: "font-[var(--font-inter)] text-sm leading-relaxed",
+//   },
+//   {
+//     id: "merriweather",
+//     name: "Merriweather",
+//     preview: "Made for reading",
+//     className: "font-[var(--font-merriweather)] text-base leading-7",
+//   },
+//   {
+//     id: "jetbrains",
+//     name: "JetBrains Mono",
+//     preview: "Code & technical notes",
+//     className: "font-[var(--font-jetbrains)] text-sm",
+//   },
+// ]
+
+// export const fontOptions: FontOption[] = [
+//   {
+//     id: "poppins",
+//     name: "Poppins",
+//     preview: "Clean and friendly",
+//     className: "font-[var(--font-poppins)] text-sm leading-relaxed",
+//   },
+//   {
+//     id: "playfair",
+//     name: "Playfair Display",
+//     preview: "Elegant and expressive",
+//     className: "font-[var(--font-playfair)] text-base leading-relaxed",
+//   },
+//   {
+//     id: "caveat",
+//     name: "Caveat",
+//     preview: "Personal handwritten feel",
+//     className: "font-[var(--font-caveat)] text-xl tracking-wide",
+//   },
+// ]
+
+
 
 interface FontPickerProps {
   selectedFont: FontStyle

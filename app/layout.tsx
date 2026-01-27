@@ -1,8 +1,25 @@
 import React from "react"
 import type { Metadata, Viewport } from 'next'
-import { Caveat, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { Poppins, Playfair_Display, Caveat, Inter } from 'next/font/google'
+
+
+// export const poppins = Poppins({
+//   subsets: ['latin'],
+//   weight: ['400', '500', '600'],
+//   variable: '--font-poppins',
+// })
+
+// export const playfair = Playfair_Display({
+//   subsets: ['latin'],
+//   variable: '--font-playfair',
+// })
+
+// export const caveat = Caveat({
+//   subsets: ['latin'],
+//   variable: '--font-caveat',
+// })
 
 const _inter = Inter({ subsets: ["latin"] });
 const _caveat = Caveat({ subsets: ["latin"], variable: '--font-handwriting' });
@@ -16,7 +33,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'Muse Notes - Aesthetic Note Taking',
+  title: 'Beautiful Notes - Aesthetic Note Taking',
   description: 'Beautiful note-taking app with aesthetic templates and handwriting fonts',
   generator: 'v0.app',
   icons: {

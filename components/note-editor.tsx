@@ -1,148 +1,44 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react"
+import { useRef, forwardRef, useImperativeHandle } from "react"
 import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ImageBlock } from "@/types/image"
+import { PageContent } from "@/types/page"
+import { NoteEditorProps } from "@/types/noteeditor"
+import { useNoteEditor } from "@/hooks/useNoteEditor"
+import { useImageManager } from "@/hooks/useImageManager"
+import { useDrawing } from "@/hooks/useDrawing"
 
-interface ImageBlock {
-  id: string
-  url: string
-  position: { x: number; y: number }
-}
-
-interface DrawingPoint {
-  x: number
-  y: number
-}
-
-interface DrawingStroke {
-  id: string
-  points: DrawingPoint[]
-  color: string
-  width: number
-  tool: 'pen' | 'highlighter' | 'eraser'
-}
-
-interface PageContent {
-  id?: string
-  title: string
-  content: string
-  images: ImageBlock[]
-  drawings?: DrawingStroke[]
-}
-
-interface NoteEditorProps {
-  template: {
-    id: string
-    name: string
-    bgClass: string
-    lineStyle: string
-    accentColor: string
-    isCustom?: boolean
-    customImageUrl?: string
-  }
-  fontStyle: string
-  initialPages?: PageContent[]
-}
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
   function NoteEditor({ template, fontStyle, initialPages }, ref) {
-  const [pages, setPages] = useState<PageContent[]>(
-    initialPages && initialPages.length > 0 
-      ? initialPages 
-      : [{ title: "", content: "", images: [], drawings: [] }]
-  )
-  const [currentPage, setCurrentPage] = useState(0)
-  const [draggedImage, setDraggedImage] = useState<string | null>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [isDrawingMode, setIsDrawingMode] = useState(false)
-  const [drawingTool, setDrawingTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen')
-  const [drawingColor, setDrawingColor] = useState('#000000')
-  const [strokeWidth, setStrokeWidth] = useState(2)
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [currentStroke, setCurrentStroke] = useState<DrawingPoint[]>([])
   const editorRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Sync with initialPages when they change (switching notes)
-  useEffect(() => {
-    if (initialPages && initialPages.length > 0) {
-      setPages(initialPages)
-      setCurrentPage(0)
-    } else if (initialPages !== undefined) {
-      // Reset to blank page for new notes
-      setPages([{ title: "", content: "", images: [], drawings: [] }])
-      setCurrentPage(0)
-    }
-  }, [initialPages])
+  
+  // Page management
+  const {
+    pages,
+    setPages,
+    currentPage,
+    currentPageData,
+    setTitle,
+    setContent,
+    addNewPage,
+    goToPage,
+    getPages,
+    updateCurrentPage,
+  } = useNoteEditor({ initialPages })
 
   // Expose getPages method via ref
   useImperativeHandle(ref, () => ({
-    getPages: () => pages
+    getPages
   }))
 
-  // Get current page data
-  const { title, content, images, drawings = [] } = pages[currentPage]
+  // Get current page data - with safety check
+  const { title = "", content = "", images = [], drawings = [] } = currentPageData || {}
 
-  const updateCurrentPage = (updates: Partial<PageContent>) => {
-    setPages((prev) =>
-      prev.map((page, i) => (i === currentPage ? { ...page, ...updates } : page))
-    )
-  }
-
-  // Redraw canvas when page changes or drawings update
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // Set canvas size to match container
-    const rect = editorRef.current?.getBoundingClientRect()
-    if (rect) {
-      canvas.width = rect.width
-      canvas.height = rect.height
-    }
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    // Redraw all strokes
-    drawings.forEach((stroke) => {
-      if (stroke.points.length < 2) return
-
-      ctx.beginPath()
-      ctx.strokeStyle = stroke.color
-      ctx.lineWidth = stroke.width
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      
-      if (stroke.tool === 'highlighter') {
-        ctx.globalAlpha = 0.3
-      } else if (stroke.tool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out'
-      } else {
-        ctx.globalAlpha = 1
-        ctx.globalCompositeOperation = 'source-over'
-      }
-
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y)
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y)
-      }
-      ctx.stroke()
-
-      // Reset composite operation
-      ctx.globalAlpha = 1
-      ctx.globalCompositeOperation = 'source-over'
-    })
-  }, [drawings, currentPage])
-
-  const setTitle = (newTitle: string) => updateCurrentPage({ title: newTitle })
-  const setContent = (newContent: string) => updateCurrentPage({ content: newContent })
+  // Image state updater function
   const setImages = (
     updater: ImageBlock[] | ((prev: ImageBlock[]) => ImageBlock[])
   ) => {
@@ -156,188 +52,44 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     )
   }
 
-  const addNewPage = () => {
-    setPages((prev) => [...prev, { title: "", content: "", images: [], drawings: [] }])
-    setCurrentPage(pages.length)
+  // Image management
+  const {
+    isDragOver,
+    fileInputRef,
+    handleDrop: handleImageDrop,
+    handleDragOver,
+    handleDragLeave,
+    handleImageDragStart,
+    removeImage,
+    handleFileSelect,
+  } = useImageManager({ onImagesChange: setImages, images })
+
+  // Drawing management
+  const {
+    isDrawingMode,
+    setIsDrawingMode,
+    drawingTool,
+    setDrawingTool,
+    drawingColor,
+    setDrawingColor,
+    strokeWidth,
+    setStrokeWidth,
+    canvasRef,
+    startDrawing,
+    draw,
+    endDrawing,
+    clearDrawings,
+  } = useDrawing({
+    drawings,
+    onDrawingsChange: (newDrawings) => updateCurrentPage({ drawings: newDrawings }),
+    editorRef,
+  })
+
+  // Wrapper for handleDrop to pass editor rect
+  const handleDrop = (e: React.DragEvent) => {
+    const rect = editorRef.current?.getBoundingClientRect()
+    handleImageDrop(e, rect)
   }
-
-  const goToPage = (pageIndex: number) => {
-    if (pageIndex >= 0 && pageIndex < pages.length) {
-      setCurrentPage(pageIndex)
-    }
-  }
-
-  // Drawing handlers
-  const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawingMode) return
-
-    setIsDrawing(true)
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    const point = 'touches' in e 
-      ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
-      : { x: e.clientX - rect.left, y: e.clientY - rect.top }
-
-    setCurrentStroke([point])
-  }, [isDrawingMode])
-
-  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !isDrawingMode) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    const point = 'touches' in e 
-      ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
-      : { x: e.clientX - rect.left, y: e.clientY - rect.top }
-
-    setCurrentStroke((prev) => [...prev, point])
-
-    // Draw current stroke in real-time
-    const ctx = canvas.getContext('2d')
-    if (!ctx || currentStroke.length === 0) return
-
-    ctx.strokeStyle = drawingColor
-    ctx.lineWidth = strokeWidth
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-
-    if (drawingTool === 'highlighter') {
-      ctx.globalAlpha = 0.3
-    } else if (drawingTool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out'
-    } else {
-      ctx.globalAlpha = 1
-      ctx.globalCompositeOperation = 'source-over'
-    }
-
-    ctx.beginPath()
-    const lastPoint = currentStroke[currentStroke.length - 1]
-    ctx.moveTo(lastPoint.x, lastPoint.y)
-    ctx.lineTo(point.x, point.y)
-    ctx.stroke()
-
-    ctx.globalAlpha = 1
-    ctx.globalCompositeOperation = 'source-over'
-  }, [isDrawing, isDrawingMode, currentStroke, drawingColor, strokeWidth, drawingTool])
-
-  const endDrawing = useCallback(() => {
-    if (!isDrawing || currentStroke.length === 0) {
-      setIsDrawing(false)
-      setCurrentStroke([])
-      return
-    }
-
-    // Save the stroke
-    const newStroke: DrawingStroke = {
-      id: `stroke-${Date.now()}`,
-      points: currentStroke,
-      color: drawingColor,
-      width: strokeWidth,
-      tool: drawingTool,
-    }
-
-    updateCurrentPage({ 
-      drawings: [...drawings, newStroke] 
-    })
-
-    setIsDrawing(false)
-    setCurrentStroke([])
-  }, [isDrawing, currentStroke, drawingColor, strokeWidth, drawingTool, drawings])
-
-  const clearDrawings = useCallback(() => {
-    updateCurrentPage({ drawings: [] })
-  }, [])
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault()
-      setIsDragOver(false)
-
-      if (draggedImage) {
-        // Moving existing image
-        const rect = editorRef.current?.getBoundingClientRect()
-        if (rect) {
-          const x = e.clientX - rect.left - 75
-          const y = e.clientY - rect.top - 50
-          setImages((prev) =>
-            prev.map((img) =>
-              img.id === draggedImage ? { ...img, position: { x, y } } : img
-            )
-          )
-        }
-        setDraggedImage(null)
-        return
-      }
-
-      // Dropping new files
-      const files = Array.from(e.dataTransfer.files).filter((file) =>
-        file.type.startsWith("image/")
-      )
-
-      if (files.length > 0) {
-        const rect = editorRef.current?.getBoundingClientRect()
-        files.forEach((file, index) => {
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            const newImage: ImageBlock = {
-              id: `img-${Date.now()}-${index}`,
-              url: event.target?.result as string,
-              position: {
-                x: rect ? e.clientX - rect.left - 75 + index * 20 : 50,
-                y: rect ? e.clientY - rect.top - 50 + index * 20 : 50,
-              },
-            }
-            setImages((prev) => [...prev, newImage])
-          }
-          reader.readAsDataURL(file)
-        })
-      }
-    },
-    [draggedImage]
-  )
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback(() => {
-    setIsDragOver(false)
-  }, [])
-
-  const handleImageDragStart = useCallback((id: string) => {
-    setDraggedImage(id)
-  }, [])
-
-  const removeImage = useCallback((id: string) => {
-    setImages((prev) => prev.filter((img) => img.id !== id))
-  }, [])
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || [])
-      files.forEach((file, index) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const newImage: ImageBlock = {
-            id: `img-${Date.now()}-${index}`,
-            url: event.target?.result as string,
-            position: { x: 50 + index * 20, y: 100 + index * 20 },
-          }
-          setImages((prev) => [...prev, newImage])
-        }
-        reader.readAsDataURL(file)
-      })
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-    },
-    []
-  )
 
   const getFontClass = () => {
     switch (fontStyle) {
@@ -374,7 +126,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
           >
             <ImagePlus className="w-4 h-4" />
-            <span className="text-sm hidden sm:inline">Add Image</span>
+            <span className="text-sm hidden sm:inline"></span>
           </button>
           <input
             ref={fileInputRef}
@@ -541,14 +293,14 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         </div>
 
         {/* Draggable Images */}
-        {images.map((img) => (
+        {images && images.length > 0 && images.map((img) => (
           <div
             key={img.id}
             draggable
             onDragStart={() => handleImageDragStart(img.id)}
             style={{
-              left: img.position.x,
-              top: img.position.y,
+              left: img.position?.x || 50,
+              top: img.position?.y || 50,
             }}
             className="absolute group cursor-move z-[2]"
           >
