@@ -16,6 +16,7 @@ export async function GET() {
           id,
           title,
           content,
+          drawings,
           note_images (
             id,
             storage_path,
@@ -40,6 +41,7 @@ export async function GET() {
         id: page.id,
         title: page.title,
         content: page.content,
+        drawings: page.drawings || [],
         images: page.note_images.map((img: any) => ({
           id: img.id,
           url: supabase
@@ -85,7 +87,8 @@ export async function POST(req: NextRequest) {
           .insert({
             note_id: note.id,
             title: page.title,
-            content: page.content
+            content: page.content,
+            drawings: page.drawings || []
           })
           .select()
           .single()
@@ -191,7 +194,8 @@ export async function PUT(req: NextRequest) {
         .insert({
           note_id: note.id,
           title: page.title,
-          content: page.content
+          content: page.content,
+          drawings: page.drawings || []
         })
         .select()
         .single()

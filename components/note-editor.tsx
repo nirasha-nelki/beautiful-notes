@@ -112,7 +112,6 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   }
 
   const getLineBackground = () => {
-    console.log('Template line style:', template.lineStyle)
     switch (template.lineStyle) {
       case "lined":
         return "bg-[linear-gradient(transparent_31px,#e8e0d5_31px)] bg-[length:100%_32px]"
