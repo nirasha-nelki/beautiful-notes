@@ -13,8 +13,17 @@ import { useDrawing } from "@/hooks/useDrawing"
 
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
-  function NoteEditor({ template, fontStyle, initialPages }, ref) {
+  function NoteEditor({ template: templateProp, fontStyle, initialPages }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
+  
+  // Use default template if null
+  const template = templateProp || {
+    id: 1,
+    name: "Default",
+    bgClass: "bg-[#faf8f3]",
+    lineStyle: "plain" as const,
+    accentColor: "#8b7355",
+  }
   
   // Page management
   const {

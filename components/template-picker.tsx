@@ -7,56 +7,56 @@ import { Check, Upload, X, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Template, TemplatePickerProps } from "@/types/template"
 
-export const templates: Template[] = [
-  {
-    id: "cream",
-    name: "Vintage Cream",
-    bgClass: "bg-[#faf8f3]",
-    lineStyle: "lined",
-    accentColor: "#8b7355",
-    preview: "Warm cream paper with subtle lines",
-  },
-  {
-    id: "blush",
-    name: "Soft Blush",
-    bgClass: "bg-[#fdf2f4]",
-    lineStyle: "dotted",
-    accentColor: "#c08b8b",
-    preview: "Delicate pink with dot pattern",
-  },
-  {
-    id: "sage",
-    name: "Garden Sage",
-    bgClass: "bg-[#f2f5f0]",
-    lineStyle: "plain",
-    accentColor: "#6b8e6b",
-    preview: "Fresh green, clean canvas",
-  },
-  {
-    id: "lavender",
-    name: "Misty Lavender",
-    bgClass: "bg-[#f5f3f7]",
-    lineStyle: "grid",
-    accentColor: "#9b8bb4",
-    preview: "Soft purple with grid layout",
-  },
-  {
-    id: "sky",
-    name: "Morning Sky",
-    bgClass: "bg-[#f0f5f9]",
-    lineStyle: "lined",
-    accentColor: "#7a9eb8",
-    preview: "Serene blue with lines",
-  },
-  {
-    id: "peach",
-    name: "Warm Peach",
-    bgClass: "bg-[#fef5ed]",
-    lineStyle: "dotted",
-    accentColor: "#d4a574",
-    preview: "Cozy peach with dots",
-  },
-]
+// export const templates: Template[] = [
+//   {
+//     id: "cream",
+//     name: "Vintage Cream",
+//     bgClass: "bg-[#faf8f3]",
+//     lineStyle: "lined",
+//     accentColor: "#8b7355",
+//     preview: "Warm cream paper with subtle lines",
+//   },
+//   {
+//     id: "blush",
+//     name: "Soft Blush",
+//     bgClass: "bg-[#fdf2f4]",
+//     lineStyle: "dotted",
+//     accentColor: "#c08b8b",
+//     preview: "Delicate pink with dot pattern",
+//   },
+//   {
+//     id: "sage",
+//     name: "Garden Sage",
+//     bgClass: "bg-[#f2f5f0]",
+//     lineStyle: "plain",
+//     accentColor: "#6b8e6b",
+//     preview: "Fresh green, clean canvas",
+//   },
+//   {
+//     id: "lavender",
+//     name: "Misty Lavender",
+//     bgClass: "bg-[#f5f3f7]",
+//     lineStyle: "grid",
+//     accentColor: "#9b8bb4",
+//     preview: "Soft purple with grid layout",
+//   },
+//   {
+//     id: "sky",
+//     name: "Morning Sky",
+//     bgClass: "bg-[#f0f5f9]",
+//     lineStyle: "lined",
+//     accentColor: "#7a9eb8",
+//     preview: "Serene blue with lines",
+//   },
+//   {
+//     id: "peach",
+//     name: "Warm Peach",
+//     bgClass: "bg-[#fef5ed]",
+//     lineStyle: "dotted",
+//     accentColor: "#d4a574",
+//     preview: "Cozy peach with dots",
+//   },
+// ]
 
 
 
@@ -64,6 +64,7 @@ export function TemplatePicker({
   selectedTemplate,
   onSelect,
   customTemplates,
+  templates,
   onAddCustomTemplate,
   onRemoveCustomTemplate,
 }: TemplatePickerProps) {
@@ -76,14 +77,14 @@ export function TemplatePicker({
     const reader = new FileReader()
     reader.onload = (event) => {
       const customTemplate: Template = {
-        id: `custom-${Date.now()}`,
+        id: Date.now(),
         name: file.name.replace(/\.[^/.]+$/, "").slice(0, 20),
         bgClass: "",
         lineStyle: "plain",
         accentColor: "#d4a574",
         preview: "Custom template",
-        isCustom: true,
-        customImageUrl: event.target?.result as string,
+        // isCustom: true,
+        // customImageUrl: event.target?.result as string,
       }
       onAddCustomTemplate(customTemplate)
       onSelect(customTemplate)
@@ -125,7 +126,7 @@ export function TemplatePicker({
             onClick={() => onSelect(template)}
             className={cn(
               "relative p-3 rounded-2xl border-2 transition-all duration-200 text-left group",
-              selectedTemplate.id === template.id
+              selectedTemplate?.id === template.id
                 ? "border-primary shadow-md scale-[1.02]"
                 : "border-border hover:border-primary/50 hover:shadow-sm"
             )}
@@ -200,7 +201,7 @@ export function TemplatePicker({
             <p className="text-xs text-muted-foreground mt-0.5">
               {template.preview}
             </p>
-            {selectedTemplate.id === template.id && (
+            {selectedTemplate?.id === template.id && (
               <div
                 className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: template.accentColor }}
