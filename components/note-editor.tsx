@@ -71,6 +71,9 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     handleImageDragStart,
     removeImage,
     handleFileSelect,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
   } = useImageManager({ onImagesChange: setImages, images })
 
   // Drawing management
@@ -98,6 +101,12 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   const handleDrop = (e: React.DragEvent) => {
     const rect = editorRef.current?.getBoundingClientRect()
     handleImageDrop(e, rect)
+  }
+
+  // Wrapper for touch handlers to pass editor rect
+  const handleImageTouchMove = (e: React.TouchEvent) => {
+    const rect = editorRef.current?.getBoundingClientRect()
+    handleTouchMove(e, rect)
   }
 
   const getFontClass = () => {
@@ -307,11 +316,14 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             key={img.id}
             draggable
             onDragStart={() => handleImageDragStart(img.id)}
+            onTouchStart={(e) => handleTouchStart(e, img.id)}
+            onTouchMove={handleImageTouchMove}
+            onTouchEnd={handleTouchEnd}
             style={{
               left: img.position?.x || 50,
               top: img.position?.y || 50,
             }}
-            className="absolute group cursor-move z-[2]"
+            className="absolute group cursor-move z-[2] touch-none"
           >
             <div className="relative">
               <img

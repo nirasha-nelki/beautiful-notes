@@ -9,6 +9,7 @@ interface UseImageManagerProps {
 export function useImageManager({ onImagesChange, images }: UseImageManagerProps) {
   const [draggedImage, setDraggedImage] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [touchOffset, setTouchOffset] = useState({ x: 0, y: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDrop = useCallback(
@@ -96,6 +97,44 @@ export function useImageManager({ onImagesChange, images }: UseImageManagerProps
     [onImagesChange]
   )
 
+  // Touch event handlers for mobile
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent, imageId: string) => {
+      const touch = e.touches[0]
+      const target = e.currentTarget as HTMLElement
+      const rect = target.getBoundingClientRect()
+      
+      setDraggedImage(imageId)
+      setTouchOffset({
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      })
+    },
+    []
+  )
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent, editorRect: DOMRect | undefined) => {
+      if (!draggedImage || !editorRect) return
+      
+      e.preventDefault()
+      const touch = e.touches[0]
+      const x = touch.clientX - editorRect.left - touchOffset.x
+      const y = touch.clientY - editorRect.top - touchOffset.y
+      
+      onImagesChange((prev) =>
+        prev.map((img) =>
+          img.id === draggedImage ? { ...img, position: { x, y } } : img
+        )
+      )
+    },
+    [draggedImage, touchOffset, onImagesChange]
+  )
+
+  const handleTouchEnd = useCallback(() => {
+    setDraggedImage(null)
+  }, [])
+
   return {
     draggedImage,
     isDragOver,
@@ -106,5 +145,8 @@ export function useImageManager({ onImagesChange, images }: UseImageManagerProps
     handleImageDragStart,
     removeImage,
     handleFileSelect,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
   }
 }
