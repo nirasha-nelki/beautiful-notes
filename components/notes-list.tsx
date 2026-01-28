@@ -65,7 +65,7 @@ export function NotesList({
                       {note.preview || "No content"}
                     </p>
                     <p className="text-xs text-muted-foreground/60 mt-2.5">
-                      {note.date}
+                      {note.created_at}
                     </p>
                   </div>
                 </div>

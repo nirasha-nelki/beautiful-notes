@@ -24,6 +24,7 @@ export async function GET() {
           )
         )
       `)
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
@@ -97,12 +98,17 @@ export async function POST(req: NextRequest) {
             const buffer = base64ToBuffer(img.url)
             storagePath = `${note.id}/${img.id}.jpg`
 
-            await supabase.storage
+            const { error: uploadError } = await supabase.storage
               .from('note-images')
               .upload(storagePath, buffer, {
                 upsert: true,
                 contentType: 'image/jpeg'
               })
+
+            if (uploadError) {
+              console.error('Failed to upload image:', uploadError)
+              throw new Error(`Image upload failed: ${uploadError.message}`)
+            }
           } else if (img.url.includes('supabase')) {
             // Extract storage path from public URL
             const urlObj = new URL(img.url)
@@ -110,13 +116,18 @@ export async function POST(req: NextRequest) {
             storagePath = pathParts[1] || img.url
           }
 
-          await supabase.from('note_images').insert({
+          const { error: insertError } = await supabase.from('note_images').insert({
             id: img.id,
             page_id: pageRow.id,
             storage_path: storagePath,
             x: img.position.x,
             y: img.position.y
           })
+
+          if (insertError) {
+            console.error('Failed to insert image record:', insertError)
+            throw new Error(`Image DB insert failed: ${insertError.message}`)
+          }
         }
       }
     }
@@ -135,11 +146,13 @@ export async function PUT(req: NextRequest) {
   try {
     const { note } = await req.json()
 
+    console.log('Updating note:', note)
+
     // 1. Update note metadata
     await supabase.from('notes').update({
       title: note.title,
       preview: note.preview,
-      date: note.date,
+      created_at: new Date().toISOString(),
       template_id: note.templateId,
       accent_color: note.accentColor
     }).eq('id', note.id)
@@ -190,12 +203,17 @@ export async function PUT(req: NextRequest) {
           const buffer = base64ToBuffer(img.url)
           storagePath = `${note.id}/${img.id}.jpg`
 
-          await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('note-images')
             .upload(storagePath, buffer, {
               upsert: true,
               contentType: 'image/jpeg'
             })
+
+          if (uploadError) {
+            console.error('Failed to upload image:', uploadError)
+            throw new Error(`Image upload failed: ${uploadError.message}`)
+          }
         } else if (img.url.includes('supabase')) {
           // Extract storage path from public URL
           const urlObj = new URL(img.url)
@@ -203,14 +221,20 @@ export async function PUT(req: NextRequest) {
           storagePath = pathParts[1] || img.url
         }
 
-        await supabase.from('note_images').insert({
+        const { error: insertError } = await supabase.from('note_images').insert({
           id: img.id,
           page_id: pageRow.id,
           storage_path: storagePath,
           x: img.position.x,
           y: img.position.y
         })
+
+        if (insertError) {
+          console.error('Failed to insert image record:', insertError)
+          throw new Error(`Image DB insert failed: ${insertError.message}`)
+        }
       }
+
     }
 
     return NextResponse.json({ success: true })

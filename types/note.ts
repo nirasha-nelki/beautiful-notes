@@ -4,8 +4,8 @@ export interface Note {
   id: string
   title: string
   preview: string
-  date: string
-  templateId: string
+  created_at: string
+  templateId: number
   accentColor: string
   pages?: PageContent[]
 }
