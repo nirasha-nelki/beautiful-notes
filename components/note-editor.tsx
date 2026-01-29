@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useRef, forwardRef, useImperativeHandle } from "react"
+import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from "react"
 import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ImageBlock } from "@/types/image"
@@ -133,6 +133,21 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     }
   }
 
+  useEffect(() => {
+    // Disable hand gesture to refresh the page on mobile when in drawing mode
+    const touchMoveHandler = (e: TouchEvent) => {
+      if (isDrawingMode) {
+        e.preventDefault()
+      }
+    }
+
+    document.addEventListener("touchmove", touchMoveHandler, { passive: false })
+
+    return () => {
+      document.removeEventListener("touchmove", touchMoveHandler)
+    }
+  }, [isDrawingMode])
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -178,9 +193,9 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           </button>
         </div>
 
-        {/* Drawing Tools */}
+        {/* Drawing Tools - Desktop (in toolbar) */}
         {isDrawingMode && (
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <select
               value={drawingTool}
               onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
@@ -228,6 +243,49 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           />
         )}
       </div>
+
+      {/* Drawing Tools - Mobile (floating right) */}
+      {isDrawingMode && (
+        <div className="sm:hidden fixed right-2 top-20 z-[10] bg-card/55 backdrop-blur-sm rounded-lg shadow-lg border border-border p-2 flex flex-col gap-2">
+          <select
+            value={drawingTool}
+            onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
+            className="px-2 py-1.5 text-xs rounded bg-secondary border border-border"
+          >
+            <option value="pen">Pen</option>
+            <option value="highlighter">Highlighter</option>
+            <option value="eraser">Eraser</option>
+          </select>
+          
+          <input
+            type="color"
+            value={drawingColor}
+            onChange={(e) => setDrawingColor(e.target.value)}
+            className="w-10 h-10 rounded cursor-pointer"
+            disabled={drawingTool === 'eraser'}
+          />
+          
+          <select
+            value={strokeWidth}
+            onChange={(e) => setStrokeWidth(Number(e.target.value))}
+            className="px-2 py-1.5 text-xs rounded bg-secondary border border-border"
+          >
+            <option value="1">Thin</option>
+            <option value="2">Normal</option>
+            <option value="4">Medium</option>
+            <option value="8">Thick</option>
+            <option value="16">Bold</option>
+          </select>
+          
+          <button
+            type="button"
+            onClick={clearDrawings}
+            className="px-2 py-1.5 text-xs rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Editor Area */}
       <div
