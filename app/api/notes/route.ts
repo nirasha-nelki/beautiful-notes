@@ -163,35 +163,30 @@ export async function PUT(req: NextRequest) {
     // 2. Fetch existing pages
     const { data: pages } = await supabase
       .from('pages')
-      .select('id')
+      .select(`
+        id,
+        note_images (
+          id,
+          storage_path
+        )
+      `)
       .eq('note_id', note.id)
 
-    // 3. Delete images from storage
+    const existingImagePaths = new Set<string>()
     for (const page of pages ?? []) {
-      const { data: images } = await supabase
-        .from('note_images')
-        .select('storage_path')
-        .eq('page_id', page.id)
-
-      if (images?.length) {
-        await supabase.storage
-          .from('note-images')
-          .remove(images.map(i => i.storage_path))
+      for (const img of page.note_images) {
+        existingImagePaths.add(img.storage_path)
       }
     }
 
-    // 4. Delete DB records
-    await supabase.from('note_images').delete()
-      .in('page_id', pages?.map(p => p.id) ?? [])
+    const newImagePaths = new Set<string>()
 
-    await supabase.from('pages').delete()
-      .eq('note_id', note.id)
-
-    // 5. Re-insert pages + images (same logic as POST)
+    // upsert pages + images
     for (const page of note.pages ?? []) {
       const { data: pageRow } = await supabase
         .from('pages')
-        .insert({
+        .upsert({
+          id: page.id,
           note_id: note.id,
           title: page.title,
           content: page.content,
@@ -210,7 +205,7 @@ export async function PUT(req: NextRequest) {
           const { error: uploadError } = await supabase.storage
             .from('note-images')
             .upload(storagePath, buffer, {
-              upsert: true,
+              upsert: false,
               contentType: 'image/jpeg'
             })
 
@@ -225,7 +220,9 @@ export async function PUT(req: NextRequest) {
           storagePath = pathParts[1] || img.url
         }
 
-        const { error: insertError } = await supabase.from('note_images').insert({
+        newImagePaths.add(storagePath)
+
+        const { error: insertError } = await supabase.from('note_images').upsert({
           id: img.id,
           page_id: pageRow.id,
           storage_path: storagePath,
@@ -238,10 +235,27 @@ export async function PUT(req: NextRequest) {
           throw new Error(`Image DB insert failed: ${insertError.message}`)
         }
       }
+    }
 
+    // Delete removed images from storage
+    const imagesToDelete = [...existingImagePaths].filter(
+      p => !newImagePaths.has(p)
+    )
+
+    if (imagesToDelete.length) {
+      await supabase.storage
+        .from('note-images')
+        .remove(imagesToDelete)
+
+      await supabase
+        .from('note_images')
+        .delete()
+        .in('storage_path', imagesToDelete)
     }
 
     return NextResponse.json({ success: true })
+
+
   } catch (err) {
     console.error(err)
     return NextResponse.json(
