@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from "react"
-import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus } from "lucide-react"
+import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus, Pen, Highlighter, Eraser, Slash, Dot } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ImageBlock } from "@/types/image"
 import { PageContent } from "@/types/page"
@@ -10,11 +10,13 @@ import { NoteEditorProps } from "@/types/noteeditor"
 import { useNoteEditor } from "@/hooks/useNoteEditor"
 import { useImageManager } from "@/hooks/useImageManager"
 import { useDrawing } from "@/hooks/useDrawing"
+import { set } from "react-hook-form"
 
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
   function NoteEditor({ template: templateProp, fontStyle, initialPages }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const [expandLineWidth, setExpandLineWidth] = useState(false)
   
   // Use default template if null
   const template = templateProp || {
@@ -196,6 +198,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         {/* Drawing Tools - Desktop (in toolbar) */}
         {isDrawingMode && (
           <div className="hidden sm:flex items-center gap-2">
+            
             <select
               value={drawingTool}
               onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
@@ -246,43 +249,111 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
 
       {/* Drawing Tools - Mobile (floating right) */}
       {isDrawingMode && (
-        <div className="sm:hidden fixed right-2 top-20 z-[10] bg-card/55 backdrop-blur-sm rounded-lg shadow-lg border border-border p-2 flex flex-col gap-2">
-          <select
-            value={drawingTool}
-            onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
-            className="px-2 py-1.5 text-xs rounded bg-secondary border border-border"
-          >
-            <option value="pen">Pen</option>
-            <option value="highlighter">Highlighter</option>
-            <option value="eraser">Eraser</option>
-          </select>
+        <div className="sm:hidden fixed right-2 top-40 z-[10] bg-card/55 backdrop-blur-sm rounded-lg shadow-lg border border-border p-2 flex flex-col gap-2">
+          {/* <div className="w-px h-6 bg-border" /> */}
+              < Pen className={cn(
+                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
+                drawingTool === 'pen' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
+              )} 
+              onClick={() => setDrawingTool('pen')}
+            />
+            <Highlighter className={cn(
+                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
+                drawingTool === 'highlighter' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
+              )} 
+              onClick={() => setDrawingTool('highlighter')}
+            />
+
+            <Eraser className={cn(
+                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
+                drawingTool === 'eraser' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
+              )} 
+              onClick={() => setDrawingTool('eraser')}
+            />
+
           
           <input
             type="color"
             value={drawingColor}
             onChange={(e) => setDrawingColor(e.target.value)}
-            className="w-10 h-10 rounded cursor-pointer"
+            className="w-10 h-10 rounded-full cursor-pointer"
             disabled={drawingTool === 'eraser'}
           />
-          
-          <select
-            value={strokeWidth}
-            onChange={(e) => setStrokeWidth(Number(e.target.value))}
-            className="px-2 py-1.5 text-xs rounded bg-secondary border border-border"
-          >
-            <option value="1">Thin</option>
-            <option value="2">Normal</option>
-            <option value="4">Medium</option>
-            <option value="8">Thick</option>
-            <option value="16">Bold</option>
-          </select>
+
+          {
+            !expandLineWidth &&
+            < Dot className={cn(
+                "w-10 h-10 cursor-pointer border border-border text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-2 stroke-[5]",
+                // drawingTool === 'pen' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              )} 
+              onClick={() => setExpandLineWidth(!expandLineWidth)}
+            />}
+
+            {
+              expandLineWidth && (
+                
+                <div className="flex flex-col items-center mt-2 bg-card/90 p-2 rounded-lg border border-border shadow-md">
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStrokeWidth(1)
+                    setExpandLineWidth(false)
+                  }}
+                  className="w-6 h-6 mb-1 rounded-full flex items-center justify-center hover:bg-accent transition-colors"
+                >
+                  <div className="w-1 h-1 rounded-full bg-foreground" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStrokeWidth(2)
+                    setExpandLineWidth(false)
+                  }}
+                  className="w-6 h-6 mb-1 rounded-full flex items-center justify-center hover:bg-accent transition-colors"
+                >
+                  <div className="w-2 h-2 rounded-full bg-foreground" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStrokeWidth(4)
+                    setExpandLineWidth(false)
+                  }}
+                  className="w-6 h-6 mb-1 rounded-full flex items-center justify-center hover:bg-accent transition-colors"
+                >
+                  <div className="w-4 h-4 rounded-full bg-foreground" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStrokeWidth(8)
+                    setExpandLineWidth(false)
+                  }}
+                  className="w-6 h-6 mb-1 rounded-full flex items-center justify-center hover:bg-accent transition-colors"
+                >
+                  <div className="w-5 h-5 rounded-full bg-foreground" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStrokeWidth(16)
+                    setExpandLineWidth(false)
+                  }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-accent transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-foreground" />
+                </button>
+                </div>
+              ) 
+            }
           
           <button
             type="button"
             onClick={clearDrawings}
-            className="px-2 py-1.5 text-xs rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            className="p-2 text-xs rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
           >
-            Clear
+            <X className="w-4 h-4"/>
           </button>
         </div>
       )}
