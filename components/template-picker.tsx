@@ -83,8 +83,8 @@ export function TemplatePicker({
         lineStyle: "plain",
         accentColor: "#d4a574",
         preview: "Custom template",
-        // isCustom: true,
-        // customImageUrl: event.target?.result as string,
+        isCustom: true,
+        customImageUrl: event.target?.result as string,
       }
       onAddCustomTemplate(customTemplate)
       onSelect(customTemplate)
@@ -133,7 +133,8 @@ export function TemplatePicker({
           >
             <div
               className={cn(
-                "h-16 rounded-xl mb-2 relative overflow-hidden",
+                "rounded-xl mb-2 relative overflow-hidden",
+                template.isCustom ? "h-32" : "h-16",
                 !template.isCustom && template.bgClass
               )}
             >
@@ -143,19 +144,27 @@ export function TemplatePicker({
                   <img
                     src={template.customImageUrl || "/placeholder.svg"}
                     alt={template.name}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-y-0 left-1/2 -translate-x-1/2 h-full object-cover"
                   />
                   {/* Remove button for custom templates */}
-                  <button
-                    type="button"
+                  <div
                     onClick={(e) => {
                       e.stopPropagation()
                       onRemoveCustomTemplate(template.id)
                     }}
-                    className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110"
+                    className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110 cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onRemoveCustomTemplate(template.id)
+                      }
+                    }}
                   >
                     <X className="w-3 h-3" />
-                  </button>
+                  </div>
                   {/* Custom badge */}
                   <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-foreground/70 text-background text-[10px] rounded font-medium">
                     Custom
