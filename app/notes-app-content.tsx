@@ -12,10 +12,34 @@ import { FontStyle } from "@/types/fonts"
 import { Template } from "@/types/template"
 import { useTemplates } from "@/hooks/useTemplates"
 
+const CUSTOM_TEMPLATES_KEY = "customTemplates"
+
 export default function NotesAppContent() {
   const [customTemplates, setCustomTemplates] = useState<Template[]>([])
   const [selectedFont, setSelectedFont] = useState<FontStyle>("handwriting")
   const [showSettings, setShowSettings] = useState(false)
+
+  // Load custom templates from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_TEMPLATES_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setCustomTemplates(parsed)
+      }
+    } catch (error) {
+      console.error("Failed to load custom templates from localStorage:", error)
+    }
+  }, [])
+
+  // Save custom templates to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customTemplates))
+    } catch (error) {
+      console.error("Failed to save custom templates to localStorage:", error)
+    }
+  }, [customTemplates])
 
   const {
     templates: loadedTemplates,
