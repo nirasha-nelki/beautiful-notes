@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, Settings, ChevronLeft, Sparkles, Save } from "lucide-react"
+import { Menu, Settings, ChevronLeft, Sparkles, Save, Printer } from "lucide-react"
 import { NoteEditor } from "@/components/note-editor"
 import { TemplatePicker } from "@/components/template-picker"
 import { FontPicker } from "@/components/font-picker"
@@ -88,6 +88,52 @@ export default function NotesAppContent() {
     }
   }
 
+  const handlePrint = async () => {
+    if (!activeNoteId) return
+
+    const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
+
+    
+
+    try {
+      const response = await fetch("/api/print", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          noteId: activeNoteId,
+          customTemplate: isCustomTemplate
+            ? {
+                name: selectedTemplate?.name,
+                bgClass: selectedTemplate?.bgClass,
+                lineStyle: selectedTemplate?.lineStyle,
+                accentColor: selectedTemplate?.accentColor,
+                customImageUrl: selectedTemplate?.customImageUrl,
+              }
+            : null,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error("Failed to generate PDF")
+        return
+      }
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `note-${activeNoteId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Failed to download PDF:", error)
+    }
+  }
+
   // Show loading state while templates are loading
   if (templatesLoading || loadedTemplates.length === 0) {
     return (
@@ -126,14 +172,25 @@ export default function NotesAppContent() {
         </div>
         <div className="flex items-center gap-2">
           {activeNoteId && (
-            <button
-              type="button"
-              onClick={handleSaveCurrentNote}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-200 shadow-sm"
-            >
-              <Save className="w-4 h-4" />
-              <span className="hidden sm:inline">Save</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleSaveCurrentNote}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-200 shadow-sm"
+              >
+                <Save className="w-4 h-4" />
+                <span className="hidden sm:inline">Save</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-accent transition-all duration-200"
+                aria-label="Print note"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">Print</span>
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -147,7 +204,7 @@ export default function NotesAppContent() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden print-area">
         <NoteEditor
           key={activeNoteId || 'empty'}
           ref={editorRef}

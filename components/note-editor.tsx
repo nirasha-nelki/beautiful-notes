@@ -16,7 +16,9 @@ import { set } from "react-hook-form"
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
   function NoteEditor({ template: templateProp, fontStyle, initialPages }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
+  const textColorInputRef = useRef<HTMLInputElement>(null)
   const [expandLineWidth, setExpandLineWidth] = useState(false)
+  const [textColor, setTextColor] = useState("#2b2b2b")
   
   // Use default template if null
   const template = templateProp || {
@@ -193,6 +195,30 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             </svg>
             {/* <span className="text-sm hidden sm:inline">Draw</span> */}
           </button>
+
+          <div className="w-px h-6 bg-border" />
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => textColorInputRef.current?.click()}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+              aria-label="Change text color"
+            >
+              <span
+                className="w-4 h-4 rounded-full border border-border"
+                style={{ backgroundColor: textColor }}
+              />
+              <span className="text-sm hidden sm:inline">Text color</span>
+            </button>
+            <input
+              ref={textColorInputRef}
+              type="color"
+              value={textColor}
+              onChange={(e) => setTextColor(e.target.value)}
+              className="absolute left-0 top-1 mt-1 h-8 w-8 cursor-pointer opacity-0"
+            />
+          </div>
         </div>
 
         {/* Drawing Tools - Desktop (in toolbar) */}
@@ -425,6 +451,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
                 : "text-2xl font-semibold",
               template.isCustom && "text-foreground/80"
             )}
+            style={{ color: textColor }}
           />
           <textarea
             value={content}
@@ -436,6 +463,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
               getFontClass(),
               template.isCustom && "text-foreground/80"
             )}
+            style={{ color: textColor }}
           />
         </div>
 
