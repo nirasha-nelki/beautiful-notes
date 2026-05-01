@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, Settings, ChevronLeft, Sparkles, Save, Printer } from "lucide-react"
+import { Menu, Settings, ChevronLeft, Sparkles, Save, Printer, Loader, Loader2 } from "lucide-react"
 import { NoteEditor } from "@/components/note-editor"
 import { TemplatePicker } from "@/components/template-picker"
 import { FontPicker } from "@/components/font-picker"
@@ -11,6 +11,8 @@ import { useNotes } from "@/hooks/useNotes"
 import { FontStyle } from "@/types/fonts"
 import { Template } from "@/types/template"
 import { useTemplates } from "@/hooks/useTemplates"
+import { handlePrint } from '@/utils/print'
+import { set } from "react-hook-form"
 
 const CUSTOM_TEMPLATES_KEY = "customTemplates"
 
@@ -18,6 +20,7 @@ export default function NotesAppContent() {
   const [customTemplates, setCustomTemplates] = useState<Template[]>([])
   const [selectedFont, setSelectedFont] = useState<FontStyle>("handwriting")
   const [showSettings, setShowSettings] = useState(false)
+  const [printLoading, setPrintLoading] = useState(false)
 
   // Load custom templates from localStorage on mount
   useEffect(() => {
@@ -62,9 +65,12 @@ export default function NotesAppContent() {
     handleNewNote,
     handleDeleteNote,
     activeNote,
-    setActiveNote
+    setActiveNote,
+    hasUnsavedChanges,
+    handleEditorPagesChange
   } = useNotes(loadedTemplates)
 
+  // handle active note changes to update selected template if needed
   useEffect(() => {
     if (activeNote && loadedTemplates.length > 0) {
       console.log('Active note changed:', activeNote)
@@ -76,10 +82,12 @@ export default function NotesAppContent() {
     }
   }, [activeNote, loadedTemplates])
 
+  // add a new custom template to the list and select it
   const handleAddCustomTemplate = (template: Template) => {
     setCustomTemplates((prev) => [...prev, template])
   }
 
+  // removing a custom template from the list and localStorage
   const handleRemoveCustomTemplate = (id: number) => {
     setCustomTemplates((prev) => prev.filter((t) => t.id !== id))
     // If the removed template was selected, switch to default
@@ -92,9 +100,7 @@ export default function NotesAppContent() {
     if (!activeNoteId) return
 
     const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
-
-    
-
+    setPrintLoading(true)
     try {
       const response = await fetch("/api/print", {
         method: "POST",
@@ -132,6 +138,9 @@ export default function NotesAppContent() {
     } catch (error) {
       console.error("Failed to download PDF:", error)
     }
+    finally {
+      setPrintLoading(false)
+    }
   }
 
   // Show loading state while templates are loading
@@ -163,10 +172,16 @@ export default function NotesAppContent() {
           </button>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary" />
+              <img
+                src="/Beautiful_Notes_logo.png"
+                alt="Logo"
+                className="w-8 h-8 object-contain"
+              />
             </div>
             <h1 className="text-lg font-semibold text-foreground tracking-tight">
-              Beautiful Notes
+              <span className="hidden sm:inline">
+              Beautiful Notes 
+              </span>
             </h1>
           </div>
         </div>
@@ -178,8 +193,18 @@ export default function NotesAppContent() {
                 onClick={handleSaveCurrentNote}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-200 shadow-sm"
               >
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Save</span>
+                <span className="relative flex items-center">
+                  <Save className="w-4 h-4" />
+                  {hasUnsavedChanges && (
+                    <span
+                      className="sm:hidden absolute -right-1.5 -top-2 h-2 w-2 rounded-full bg-red-500"
+                      aria-label="Unsaved changes"
+                    />
+                  )}
+                </span>
+                <span className="hidden sm:inline">
+                  {hasUnsavedChanges ? "Save changes" : "Saved"}
+                </span>
               </button>
               <button
                 type="button"
@@ -187,7 +212,14 @@ export default function NotesAppContent() {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-accent transition-all duration-200"
                 aria-label="Print note"
               >
-                <Printer className="w-4 h-4" />
+                {
+                  printLoading ? (
+                    <Loader2 className="w-4 h-4 text-secondary-foreground animate-spin" />
+                  ) : (
+                    <Printer className="w-4 h-4" />
+                  )
+                }
+                {/* <Printer className="w-4 h-4" /> */}
                 <span className="hidden sm:inline">Print</span>
               </button>
             </>
@@ -211,6 +243,7 @@ export default function NotesAppContent() {
           template={selectedTemplate}
           fontStyle={selectedFont}
           initialPages={activeNoteId ? notes.find(n => n.id === activeNoteId)?.pages : undefined}
+          onPagesChange={handleEditorPagesChange}
         />
       </main>
 
@@ -249,7 +282,7 @@ export default function NotesAppContent() {
             notes={notes}
             activeNoteId={activeNoteId}
             onSelectNote={(id) => {
-              setActiveNoteId(id)
+                <span className="hidden sm:inline">{hasUnsavedChanges ? "Unsaved changes" : "Save"}</span>
               setShowSidebar(false)
             }}
             onNewNote={handleNewNote}

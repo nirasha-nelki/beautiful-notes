@@ -14,7 +14,7 @@ import { set } from "react-hook-form"
 
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
-  function NoteEditor({ template: templateProp, fontStyle, initialPages }, ref) {
+  function NoteEditor({ template: templateProp, fontStyle, initialPages, onPagesChange }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
   const textColorInputRef = useRef<HTMLInputElement>(null)
   const [expandLineWidth, setExpandLineWidth] = useState(false)
@@ -41,7 +41,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     goToPage,
     getPages,
     updateCurrentPage,
-  } = useNoteEditor({ initialPages })
+  } = useNoteEditor({ initialPages, onChange: onPagesChange })
 
   // Expose getPages method via ref
   useImperativeHandle(ref, () => ({

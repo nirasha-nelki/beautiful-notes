@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { PageContent } from "@/types/page"
 import { UseNoteEditorProps } from "@/types/noteeditor"
 
-export function useNoteEditor({ initialPages }: UseNoteEditorProps = {}) {
+export function useNoteEditor({ initialPages, onChange }: UseNoteEditorProps = {}) {
   const [pages, setPages] = useState<PageContent[]>(
     initialPages && initialPages.length > 0 
       ? initialPages 
@@ -22,6 +22,12 @@ export function useNoteEditor({ initialPages }: UseNoteEditorProps = {}) {
       setCurrentPage(0)
     }
   }, [initialPages])
+
+  useEffect(() => {
+    if (onChange) {
+      onChange(pages)
+    }
+  }, [pages, onChange])
 
   const updateCurrentPage = useCallback((updates: Partial<PageContent>) => {
     setPages((prev) =>

@@ -2,7 +2,7 @@
 import { Note } from "@/types/note"
 import { PageContent } from "@/types/page"
 import { Template } from "@/types/template"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
   
 export const useNotes = (templates: Template[]) => {
     const [notes, setNotes] = useState<Note[]>([])
@@ -12,6 +12,8 @@ export const useNotes = (templates: Template[]) => {
     const editorRef = useRef<{ getPages: () => PageContent[] }>(null)
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
     const [showSidebar, setShowSidebar] = useState(false)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+    const lastSavedPagesRef = useRef<PageContent[] | null>(null)
     
     // Initialize selectedTemplate when templates are loaded
     useEffect(() => {
@@ -72,13 +74,18 @@ export const useNotes = (templates: Template[]) => {
         
         // Save to database
         try {
-        await fetch('/api/notes', {
+        const response = await fetch('/api/notes', {
             method: isExistingNote ? 'PUT' : 'POST',
             headers: {
             'Content-Type': 'application/json',
             },
             body: JSON.stringify(isExistingNote ? { note: updatedNote } : { notes: [updatedNote] }),
         })
+        if (!response.ok) {
+            throw new Error('Save request failed')
+        }
+        lastSavedPagesRef.current = currentPages
+        setHasUnsavedChanges(false)
         } catch (error) {
         console.error('Failed to save note:', error)
         }
@@ -138,6 +145,23 @@ export const useNotes = (templates: Template[]) => {
         }
     }, [activeNoteId, notes])
 
+    const getBaselinePages = useCallback((note: Note | null): PageContent[] => {
+        if (note?.pages && note.pages.length > 0) {
+            return note.pages
+        }
+        return [{ title: "", content: "", images: [], drawings: [] }]
+    }, [])
+
+    const handleEditorPagesChange = useCallback((pages: PageContent[]) => {
+        const baseline = lastSavedPagesRef.current
+        if (!baseline) {
+            setHasUnsavedChanges(false)
+            return
+        }
+        const isDirty = JSON.stringify(pages) !== JSON.stringify(baseline)
+        setHasUnsavedChanges(isDirty)
+    }, [])
+
     useEffect(() => {
         // Whenever selectedTemplate changes, update the active note's templateId and accentColor
         if (!activeNoteId || !selectedTemplate) return
@@ -161,7 +185,13 @@ export const useNotes = (templates: Template[]) => {
 
     }, [selectedTemplate])
 
+    useEffect(() => {
+        const currentNote = activeNoteId ? notes.find(n => n.id === activeNoteId) || null : null
+        lastSavedPagesRef.current = getBaselinePages(currentNote)
+        setHasUnsavedChanges(false)
+    }, [activeNoteId, notes, getBaselinePages])
+
     return { notes, 
-        setNotes, activeNoteId, setActiveNoteId, activeNote, setActiveNote, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote, handleDeleteNote }
+        setNotes, activeNoteId, setActiveNoteId, activeNote, setActiveNote, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote, handleDeleteNote, hasUnsavedChanges, handleEditorPagesChange }
 
 }

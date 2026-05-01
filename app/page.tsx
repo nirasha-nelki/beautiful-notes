@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { Sparkles } from "lucide-react"
+import Image from "next/image"
 
 // Loading component shown during SSR and initial hydration
 function LoadingState() {
@@ -9,9 +9,16 @@ function LoadingState() {
     <div className="h-dvh w-full flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center animate-pulse">
-          <Sparkles className="w-4 h-4 text-primary" />
+          {/* <Loader2 className="w-4 h-4 text-primary" /> */}
+          <Image
+            src="/Beuatiful_Notes_logo.png"
+            alt="Logo"
+            width={16}
+            height={16}
+            className="w-4 h-4 animate-pulse"
+          />
         </div>
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">Beautiful Notes</p>
       </div>
     </div>
   )

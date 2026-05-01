@@ -12,8 +12,10 @@ export interface NoteEditorProps {
   } | null
   fontStyle: string
   initialPages?: PageContent[]
+  onPagesChange?: (pages: PageContent[]) => void
 }
 
 export interface UseNoteEditorProps {
   initialPages?: PageContent[]
+  onChange?: (pages: PageContent[]) => void
 }
