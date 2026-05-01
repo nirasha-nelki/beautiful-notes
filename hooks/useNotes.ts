@@ -129,8 +129,7 @@ export const useNotes = (templates: Template[]) => {
 
     useEffect(() => {
         loadNotes()
-
-        console.log('Updated note template to:', selectedTemplate)
+        // console.log('Updated note template to:', selectedTemplate)
     }, [])
 
     // Update activeNote when activeNoteId changes
@@ -145,6 +144,7 @@ export const useNotes = (templates: Template[]) => {
         }
     }, [activeNoteId, notes])
 
+    // Get baseline pages for change detection
     const getBaselinePages = useCallback((note: Note | null): PageContent[] => {
         if (note?.pages && note.pages.length > 0) {
             return note.pages
@@ -152,6 +152,7 @@ export const useNotes = (templates: Template[]) => {
         return [{ title: "", content: "", images: [], drawings: [] }]
     }, [])
 
+    // Check for unsaved changes whenever editor content changes
     const handleEditorPagesChange = useCallback((pages: PageContent[]) => {
         const baseline = lastSavedPagesRef.current
         if (!baseline) {
@@ -161,6 +162,16 @@ export const useNotes = (templates: Template[]) => {
         const isDirty = JSON.stringify(pages) !== JSON.stringify(baseline)
         setHasUnsavedChanges(isDirty)
     }, [])
+
+    // Handle note selection from sidebar
+    const handleSelectNote = useCallback((noteId: string) => {
+        if (noteId === activeNoteId) return
+        const note = notes.find(n => n.id === noteId) || null
+        setActiveNoteId(noteId)
+        setActiveNote(note)
+        lastSavedPagesRef.current = getBaselinePages(note)
+        setHasUnsavedChanges(false)
+    }, [notes, getBaselinePages, activeNoteId])
 
     useEffect(() => {
         // Whenever selectedTemplate changes, update the active note's templateId and accentColor
@@ -185,6 +196,7 @@ export const useNotes = (templates: Template[]) => {
 
     }, [selectedTemplate])
 
+    // Whenever activeNoteId or notes change, update the baseline pages for change detection
     useEffect(() => {
         const currentNote = activeNoteId ? notes.find(n => n.id === activeNoteId) || null : null
         lastSavedPagesRef.current = getBaselinePages(currentNote)
@@ -192,6 +204,6 @@ export const useNotes = (templates: Template[]) => {
     }, [activeNoteId, notes, getBaselinePages])
 
     return { notes, 
-        setNotes, activeNoteId, setActiveNoteId, activeNote, setActiveNote, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote, handleDeleteNote, hasUnsavedChanges, handleEditorPagesChange }
+        setNotes, activeNoteId, setActiveNoteId, activeNote, setActiveNote, isLoading, handleSaveCurrentNote, editorRef, selectedTemplate, setSelectedTemplate, showSidebar, setShowSidebar, handleNewNote, handleDeleteNote, hasUnsavedChanges, handleEditorPagesChange, handleSelectNote }
 
 }

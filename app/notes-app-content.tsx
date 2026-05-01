@@ -11,8 +11,6 @@ import { useNotes } from "@/hooks/useNotes"
 import { FontStyle } from "@/types/fonts"
 import { Template } from "@/types/template"
 import { useTemplates } from "@/hooks/useTemplates"
-import { handlePrint } from '@/utils/print'
-import { set } from "react-hook-form"
 
 const CUSTOM_TEMPLATES_KEY = "customTemplates"
 
@@ -54,7 +52,6 @@ export default function NotesAppContent() {
     notes,
     setNotes,
     activeNoteId,
-    setActiveNoteId,
     handleSaveCurrentNote,
     editorRef,
     isLoading,
@@ -67,7 +64,8 @@ export default function NotesAppContent() {
     activeNote,
     setActiveNote,
     hasUnsavedChanges,
-    handleEditorPagesChange
+    handleEditorPagesChange,
+    handleSelectNote
   } = useNotes(loadedTemplates)
 
   // handle active note changes to update selected template if needed
@@ -191,7 +189,7 @@ export default function NotesAppContent() {
               <button
                 type="button"
                 onClick={handleSaveCurrentNote}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-200 shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/90 text-primary-foreground text-sm font-medium hover:bg-primary transition-all duration-200 shadow-sm"
               >
                 <span className="relative flex items-center">
                   <Save className="w-4 h-4" />
@@ -209,7 +207,7 @@ export default function NotesAppContent() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-sm font-medium hover:bg-accent transition-all duration-200"
+                className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium hover:bg-accent transition-all duration-200"
                 aria-label="Print note"
               >
                 {
@@ -227,7 +225,7 @@ export default function NotesAppContent() {
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="p-2 rounded-lg hover:bg-accent/50 transition-all duration-200"
+            className="p-2 rounded-full hover:bg-accent/50 transition-all duration-200"
             aria-label="Open settings"
           >
             <Settings className="w-5 h-5 text-foreground/70" />
@@ -282,7 +280,7 @@ export default function NotesAppContent() {
             notes={notes}
             activeNoteId={activeNoteId}
             onSelectNote={(id) => {
-                <span className="hidden sm:inline">{hasUnsavedChanges ? "Unsaved changes" : "Save"}</span>
+              handleSelectNote(id)
               setShowSidebar(false)
             }}
             onNewNote={handleNewNote}

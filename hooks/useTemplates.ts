@@ -11,7 +11,7 @@ export const useTemplates = () => {
             const response = await fetch('/api/templates')
             const data = await response.json()
             if (data.templates && data.templates.length > 0) {
-                console.log('Loaded templates:', data.templates)
+                // console.log('Loaded templates:', data.templates)
                 setTemplates(data.templates)
             }
         } catch (error) {

@@ -1,3 +1,5 @@
+import type { FontStyle } from "./fonts"
+import type { LineStyle } from "./template"
 import { PageContent } from "./page"
 
 export interface NoteEditorProps {
@@ -5,12 +7,12 @@ export interface NoteEditorProps {
     id: number | string
     name: string
     bgClass: string
-    lineStyle: string
+    lineStyle: LineStyle
     accentColor: string
     isCustom?: boolean
     customImageUrl?: string
   } | null
-  fontStyle: string
+  fontStyle: FontStyle
   initialPages?: PageContent[]
   onPagesChange?: (pages: PageContent[]) => void
 }
