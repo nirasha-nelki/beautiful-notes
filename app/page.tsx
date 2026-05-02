@@ -11,7 +11,7 @@ function LoadingState() {
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center animate-pulse">
           {/* <Loader2 className="w-4 h-4 text-primary" /> */}
           <Image
-            src="/Beuatiful_Notes_logo.png"
+            src="/Beautiful_Notes_logo.png"
             alt="Logo"
             width={16}
             height={16}

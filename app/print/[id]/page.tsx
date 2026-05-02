@@ -219,7 +219,7 @@ export default async function PrintPage({
   backgroundRepeat: customImageUrl
     ? "no-repeat"
     : lineStyle.backgroundRepeat,
-  backgroundPosition: "0 0",
+  backgroundPosition: customImageUrl ? "top center" : "0 0",
 
   border: "1px solid #e5e5e5"
 }}
@@ -244,7 +244,7 @@ export default async function PrintPage({
   backgroundRepeat: customImageUrl
     ? "no-repeat"
     : lineStyle.backgroundRepeat,
-  backgroundPosition: "0 0",
+  backgroundPosition: customImageUrl ? "top center" : "0 0",
 
   border: "1px solid #e5e5e5"
 }}

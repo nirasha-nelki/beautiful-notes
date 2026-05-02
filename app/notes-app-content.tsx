@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Menu, Settings, ChevronLeft, Sparkles, Save, Printer, Loader, Loader2 } from "lucide-react"
+import { Menu, Settings, ChevronLeft, Sparkles, Save, Printer, Loader2 } from "lucide-react"
 import { NoteEditor } from "@/components/note-editor"
 import { TemplatePicker } from "@/components/template-picker"
 import { FontPicker } from "@/components/font-picker"

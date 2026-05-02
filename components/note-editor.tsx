@@ -2,317 +2,15 @@
 
 import type React from "react"
 import { useRef, forwardRef, useImperativeHandle, useState, useEffect, useCallback } from "react"
-import { X, GripVertical, Plus, ImagePlus, Pen, Highlighter, Eraser, Slash, Dot, PenTool } from "lucide-react"
+import { X, GripVertical, ImagePlus, Pen, Highlighter, Eraser, Dot, PenTool } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FONT_CLASS_BY_STYLE, LINE_BACKGROUND_BY_STYLE } from "@/lib/note-styles"
-import { redrawAllStrokes, getPointFromEvent } from "@/lib/drawing-utils"
 import { ImageBlock } from "@/types/image"
 import { PageContent } from "@/types/page"
-import type { DrawingPoint, DrawingStroke } from "@/types/drawing"
 import { NoteEditorProps } from "@/types/noteeditor"
 import { useNoteEditor } from "@/hooks/useNoteEditor"
 import { useImageManager } from "@/hooks/useImageManager"
 import { useDrawing } from "@/hooks/useDrawing"
-
-type EditorTemplate = NonNullable<NoteEditorProps["template"]>
-
-interface PageSectionProps {
-  page: PageContent
-  pageIndex: number
-  template: EditorTemplate
-  fontStyle: NoteEditorProps["fontStyle"]
-  textColor: string
-  isDrawingMode: boolean
-  drawingTool: "pen" | "highlighter" | "eraser"
-  drawingColor: string
-  strokeWidth: number
-  onUpdatePage: (pageIndex: number, updates: Partial<PageContent>) => void
-  onSetActive: (pageIndex: number) => void
-  onRegisterFileInput: (pageIndex: number, element: HTMLInputElement | null) => void
-}
-
-function PageSection({
-  page,
-  pageIndex,
-  template,
-  fontStyle,
-  textColor,
-  isDrawingMode,
-  drawingTool,
-  drawingColor,
-  strokeWidth,
-  onUpdatePage,
-  onSetActive,
-  onRegisterFileInput,
-}: PageSectionProps) {
-  const editorRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
-  const currentStrokeRef = useRef<DrawingPoint[]>([])
-
-  const updatePage = useCallback((updates: Partial<PageContent>) => {
-    onUpdatePage(pageIndex, updates)
-  }, [onUpdatePage, pageIndex])
-
-  const setImages = useCallback((
-    updater: ImageBlock[] | ((prev: ImageBlock[]) => ImageBlock[])
-  ) => {
-    const nextImages = typeof updater === "function" ? updater(page.images) : updater
-    updatePage({ images: nextImages })
-  }, [page.images, updatePage])
-
-  const {
-    isDragOver,
-    fileInputRef,
-    handleDrop: handleImageDrop,
-    handleDragOver,
-    handleDragLeave,
-    handleImageDragStart,
-    removeImage,
-    handleFileSelect,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-  } = useImageManager({ onImagesChange: setImages, images: page.images || [] })
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = editorRef.current?.getBoundingClientRect()
-    if (rect) {
-      canvas.width = rect.width
-      canvas.height = rect.height
-    }
-
-    redrawAllStrokes(canvas, page.drawings ?? [])
-  }, [page.drawings])
-
-  const startDrawing = useCallback((
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
-    if (!isDrawingMode) return
-
-    setIsDrawing(true)
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const point = getPointFromEvent(e, canvas)
-    currentStrokeRef.current = [point]
-  }, [isDrawingMode])
-
-  const draw = useCallback((
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>
-  ) => {
-    if (!isDrawing || !isDrawingMode) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const points = currentStrokeRef.current
-    if (points.length === 0) return
-
-    const point = getPointFromEvent(e, canvas)
-
-    ctx.strokeStyle = drawingColor
-    ctx.lineWidth = strokeWidth
-    ctx.lineCap = "round"
-    ctx.lineJoin = "round"
-
-    if (drawingTool === "highlighter") {
-      ctx.globalAlpha = 0.3
-      ctx.globalCompositeOperation = "source-over"
-    } else if (drawingTool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out"
-    } else {
-      ctx.globalAlpha = 1
-      ctx.globalCompositeOperation = "source-over"
-    }
-
-    ctx.beginPath()
-    const lastPoint = points[points.length - 1]
-    ctx.moveTo(lastPoint.x, lastPoint.y)
-    ctx.lineTo(point.x, point.y)
-    ctx.stroke()
-
-    ctx.globalAlpha = 1
-    ctx.globalCompositeOperation = "source-over"
-
-    currentStrokeRef.current = [...points, point]
-  }, [isDrawing, isDrawingMode, drawingColor, strokeWidth, drawingTool])
-
-  const endDrawing = useCallback(() => {
-    if (!isDrawing) {
-      currentStrokeRef.current = []
-      return
-    }
-
-    const points = currentStrokeRef.current
-    if (points.length === 0) {
-      setIsDrawing(false)
-      return
-    }
-
-    const newStroke: DrawingStroke = {
-      id: `stroke-${Date.now()}`,
-      points,
-      color: drawingColor,
-      width: strokeWidth,
-      tool: drawingTool,
-    }
-
-    updatePage({ drawings: [...(page.drawings ?? []), newStroke] })
-    setIsDrawing(false)
-    currentStrokeRef.current = []
-  }, [isDrawing, drawingColor, strokeWidth, drawingTool, page.drawings, updatePage])
-
-  const handleDrop = (e: React.DragEvent) => {
-    const rect = editorRef.current?.getBoundingClientRect()
-    handleImageDrop(e, rect)
-  }
-
-  const handleImageTouchMove = (e: React.TouchEvent) => {
-    const rect = editorRef.current?.getBoundingClientRect()
-    handleTouchMove(e, rect)
-  }
-
-  const fontClass = FONT_CLASS_BY_STYLE[fontStyle] ?? FONT_CLASS_BY_STYLE.sans
-
-  return (
-    <div
-      ref={editorRef}
-      className={cn(
-        "relative w-full max-w-[880px] mx-auto min-h-[720px] overflow-visible rounded-3xl border border-border/70 shadow-sm bg-card",
-        template.isCustom && "bg-transparent"
-      )}
-      onMouseDown={() => onSetActive(pageIndex)}
-      onTouchStart={() => onSetActive(pageIndex)}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-    >
-      {template.customImageUrl && (
-        <img
-          src={template.customImageUrl || "/placeholder.svg"}
-          alt="Custom template background"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      )}
-
-      {isDragOver && (
-        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center z-10 pointer-events-none">
-          <div className="bg-card/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-lg border border-primary/20">
-            <p className="text-primary font-medium">Drop image here</p>
-          </div>
-        </div>
-      )}
-
-      <input
-        ref={(el) => {
-          fileInputRef.current = el
-          onRegisterFileInput(pageIndex, el)
-        }}
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-
-      <canvas
-        ref={canvasRef}
-        className={cn(
-          "absolute inset-0 z-[2]",
-          isDrawingMode ? "cursor-crosshair" : "pointer-events-none"
-        )}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={endDrawing}
-        onMouseLeave={endDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={endDrawing}
-      />
-
-      <div
-        className={cn(
-          "p-6 h-full max-w-[880px] mx-auto flex flex-col relative z-[1]",
-          template.isCustom && "pt-20 pb-24 px-12",
-          isDrawingMode && "pointer-events-none"
-        )}
-      >
-        <input
-          type="text"
-          value={page.title}
-          onChange={(e) => updatePage({ title: e.target.value })}
-          onFocus={() => onSetActive(pageIndex)}
-          placeholder={template.isCustom ? "" : "Untitled Note..."}
-          className={cn(
-            "w-full bg-transparent border-none outline-none mb-4",
-            template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/50",
-            fontClass,
-            fontStyle === "handwriting" ? "text-3xl" : "text-2xl font-semibold",
-            template.isCustom && "text-foreground/80"
-          )}
-          style={{ color: textColor }}
-        />
-        <textarea
-          value={page.content}
-          onChange={(e) => updatePage({ content: e.target.value })}
-          onFocus={() => onSetActive(pageIndex)}
-          placeholder={template.isCustom ? "" : "Start writing your thoughts..."}
-          className={cn(
-            "w-full flex-1 min-h-[100vh] bg-transparent border-none outline-none resize-none",
-            template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/40",
-            fontClass,
-            template.isCustom && "text-foreground/80"
-          )}
-          style={{ color: textColor }}
-        />
-      </div>
-
-      {page.images && page.images.length > 0 && page.images.map((img) => (
-        <div
-          key={img.id}
-          draggable
-          onDragStart={() => handleImageDragStart(img.id)}
-          onTouchStart={(e) => handleTouchStart(e, img.id)}
-          onTouchMove={handleImageTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{
-            left: img.position?.x || 50,
-            top: img.position?.y || 50,
-          }}
-          className="absolute group cursor-move z-[2] touch-none"
-        >
-          <div className="relative">
-            <img
-              src={img.url || "/placeholder.svg"}
-              alt="Note attachment"
-              className="w-full h-full rounded-xl shadow-lg border-4 border-white object-contain"
-            />
-            <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-              <button
-                type="button"
-                onClick={() => removeImage(img.id)}
-                className="p-1.5 bg-destructive text-white rounded-full shadow-md hover:scale-110 transition-transform"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 transition-opacity pointer-events-none">
-              <GripVertical className="w-8 h-8 text-foreground" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
   function NoteEditor({ template: templateProp, fontStyle, initialPages, onPagesChange }, ref) {
@@ -339,20 +37,9 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     currentPageData,
     setTitle,
     setContent,
-    addNewPage,
     getPages,
     updateCurrentPage,
   } = useNoteEditor({ initialPages, onChange: onPagesChange })
-
-  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
-
-  const registerFileInput = useCallback((pageIndex: number, element: HTMLInputElement | null) => {
-    fileInputRefs.current[pageIndex] = element
-  }, [])
-
-  const updatePage = useCallback((pageIndex: number, updates: Partial<PageContent>) => {
-    setPages((prev) => prev.map((page, i) => (i === pageIndex ? { ...page, ...updates } : page)))
-  }, [setPages])
 
   // Expose getPages method via ref
   useImperativeHandle(ref, () => ({
@@ -464,14 +151,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         <div className="flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-[#f2e9ff] via-[#e8dcff] to-[#e2d1ff] px-2.5 py-1 shadow-sm">
           <button
             type="button"
-            onClick={() => {
-              if (template.isCustom) {
-                const targetInput = fileInputRefs.current[currentPage] ?? fileInputRefs.current[0]
-                targetInput?.click()
-                return
-              }
-              fileInputRef.current?.click()
-            }}
+            onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center h-8 w-8 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Add image"
           >
@@ -795,159 +475,119 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
       )}
 
       {/* Editor Area */}
-      {template.isCustom ? (
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-2">
-          <div className="flex flex-col gap-6">
-            {pages.map((page, pageIndex) => (
-              <PageSection
-                key={pageIndex}
-                page={page}
-                pageIndex={pageIndex}
-                template={template}
-                fontStyle={fontStyle}
-                textColor={textColor}
-                isDrawingMode={isDrawingMode}
-                drawingTool={drawingTool}
-                drawingColor={drawingColor}
-                strokeWidth={strokeWidth}
-                onUpdatePage={updatePage}
-                onSetActive={setCurrentPage}
-                onRegisterFileInput={registerFileInput}
-              />
-            ))}
-          </div>
-          <div className="flex justify-center pt-6 pb-3">
-            <button
-              type="button"
-              onClick={addNewPage}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card text-foreground hover:bg-accent transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="text-sm">Add page</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={editorRef}
-          className={cn(
-            "flex-1 relative overflow-hidden transition-all duration-300",
-            !template.isCustom && template.bgClass,
-            !template.isCustom && getLineBackground(),
-            isDragOver && "ring-2 ring-primary ring-inset"
-          )}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          {/* Custom Template Background */}
-          {template.isCustom && template.customImageUrl && (
-            <img
-              src={template.customImageUrl || "/placeholder.svg"}
-              alt="Custom template background"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-          )}
-
-          {/* Drop Zone Indicator */}
-          {isDragOver && (
-            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center z-10 pointer-events-none">
-              <div className="bg-card/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-lg border border-primary/20">
-                <p className="text-primary font-medium">Drop image here</p>
-              </div>
-            </div>
-          )}
-
-          {/* Canvas Layer for Drawing */}
-          <canvas
-            ref={canvasRef}
-            className={cn(
-              "absolute inset-0 z-[2]",
-              isDrawingMode ? "cursor-crosshair" : "pointer-events-none"
-            )}
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={endDrawing}
-            onMouseLeave={endDrawing}
-            onTouchStart={startDrawing}
-            onTouchMove={draw}
-            onTouchEnd={endDrawing}
+      <div
+        ref={editorRef}
+        className={cn(
+          "flex-1 relative overflow-hidden transition-all duration-300",
+          !template.isCustom && template.bgClass,
+          !template.isCustom && getLineBackground(),
+          isDragOver && "ring-2 ring-primary ring-inset"
+        )}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+      >
+        {template.isCustom && template.customImageUrl && (
+          <img
+            src={template.customImageUrl || "/placeholder.svg"}
+            alt="Custom template background"
+            className="absolute inset-0 w-full h-full object-cover object-top"
           />
+        )}
 
-          {/* Note Content */}
-          <div className={cn(
-            "p-6 h-full flex flex-col relative z-[1]",
-            template.isCustom && "pt-20 pb-24 px-12",
-            isDrawingMode && "pointer-events-none"
-          )}>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={template.isCustom ? "" : "Untitled Note..."}
-              className={cn(
-                "w-full bg-transparent border-none outline-none mb-4",
-                template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/50",
-                getFontClass(),
-                fontStyle === "handwriting"
-                  ? "text-3xl"
-                  : "text-2xl font-semibold",
-                template.isCustom && "text-foreground/80"
-              )}
-              style={{ color: textColor }}
-            />
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={template.isCustom ? "" : "Start writing your thoughts..."}
-              className={cn(
-                "w-full flex-1 bg-transparent border-none outline-none resize-none",
-                template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/40",
-                getFontClass(),
-                template.isCustom && "text-foreground/80"
-              )}
-              style={{ color: textColor }}
-            />
+        {/* Drop Zone Indicator */}
+        {isDragOver && (
+          <div className="absolute inset-0 bg-primary/10 flex items-center justify-center z-10 pointer-events-none">
+            <div className="bg-card/90 backdrop-blur-sm px-6 py-4 rounded-2xl shadow-lg border border-primary/20">
+              <p className="text-primary font-medium">Drop image here</p>
+            </div>
           </div>
+        )}
 
-          {/* Draggable Images */}
-          {images && images.length > 0 && images.map((img) => (
-            <div
-              key={img.id}
-              draggable
-              onDragStart={() => handleImageDragStart(img.id)}
-              onTouchStart={(e) => handleTouchStart(e, img.id)}
-              onTouchMove={handleImageTouchMove}
-              onTouchEnd={handleTouchEnd}
-              style={{
-                left: img.position?.x || 50,
-                top: img.position?.y || 50,
-              }}
-              className="absolute group cursor-move z-[2] touch-none"
-            >
-              <div className="relative">
-                <img
-                  src={img.url || "/placeholder.svg"}
-                  alt="Note attachment"
-                  className="w-36 h-auto rounded-xl shadow-lg border-4 border-white object-contain"
-                />
-                <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => removeImage(img.id)}
-                    className="p-1.5 bg-destructive text-white rounded-full shadow-md hover:scale-110 transition-transform"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 transition-opacity pointer-events-none">
-                  <GripVertical className="w-8 h-8 text-foreground" />
-                </div>
+        {/* Canvas Layer for Drawing */}
+        <canvas
+          ref={canvasRef}
+          className={cn(
+            "absolute inset-0 z-[2]",
+            isDrawingMode ? "cursor-crosshair" : "pointer-events-none"
+          )}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={endDrawing}
+          onMouseLeave={endDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={endDrawing}
+        />
+
+        {/* Note Content */}
+        <div className={cn(
+          "p-6 h-full flex flex-col relative z-[1]",
+          isDrawingMode && "pointer-events-none"
+        )}>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Untitled Note..."
+            className={cn(
+              "w-full bg-transparent border-none outline-none mb-4 placeholder:text-muted-foreground/50",
+              getFontClass(),
+              fontStyle === "handwriting"
+                ? "text-3xl"
+                : "text-2xl font-semibold"
+            )}
+            style={{ color: textColor }}
+          />
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Start writing your thoughts..."
+            className={cn(
+              "w-full flex-1 bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/40",
+              getFontClass()
+            )}
+            style={{ color: textColor }}
+          />
+        </div>
+
+        {/* Draggable Images */}
+        {images && images.length > 0 && images.map((img) => (
+          <div
+            key={img.id}
+            draggable
+            onDragStart={() => handleImageDragStart(img.id)}
+            onTouchStart={(e) => handleTouchStart(e, img.id)}
+            onTouchMove={handleImageTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{
+              left: img.position?.x || 50,
+              top: img.position?.y || 50,
+            }}
+            className="absolute group cursor-move z-[2] touch-none"
+          >
+            <div className="relative">
+              <img
+                src={img.url || "/placeholder.svg"}
+                alt="Note attachment"
+                className="w-36 h-auto rounded-xl shadow-lg border-4 border-white object-contain"
+              />
+              <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => removeImage(img.id)}
+                  className="p-1.5 bg-destructive text-white rounded-full shadow-md hover:scale-110 transition-transform"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-30 transition-opacity pointer-events-none">
+                <GripVertical className="w-8 h-8 text-foreground" />
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 })

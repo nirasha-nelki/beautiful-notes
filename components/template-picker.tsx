@@ -144,7 +144,7 @@ export function TemplatePicker({
                   <img
                     src={template.customImageUrl || "/placeholder.svg"}
                     alt={template.name}
-                    className="absolute inset-y-0 left-1/2 -translate-x-1/2 h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain"
                   />
                   {/* Remove button for custom templates */}
                   <div
