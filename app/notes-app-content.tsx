@@ -95,66 +95,157 @@ export default function NotesAppContent() {
     }
   }
 
-  const handlePrint = async () => {
-    if (!activeNoteId) return
-    if (isEditorOverflowing) return
+  // const handlePrint = async () => {
+  //   if (!activeNoteId) return
+  //   if (isEditorOverflowing) return
 
-    const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
+  //   const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
 
-    // Open a tab synchronously to avoid popup blockers
-    const printWindow = window.open("", "_blank")
+  //   // Open a tab synchronously to avoid popup blockers
+  //   const printWindow = window.open("", "_blank")
 
-    setPrintLoading(true)
-    try {
-      const response = await fetch("/api/print", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          noteId: activeNoteId,
-          customTemplate: isCustomTemplate
-            ? {
-                name: selectedTemplate?.name,
-                bgClass: selectedTemplate?.bgClass,
-                lineStyle: selectedTemplate?.lineStyle,
-                accentColor: selectedTemplate?.accentColor,
-                customImageUrl: selectedTemplate?.customImageUrl,
-              }
-            : null,
-        }),
-      })
+  //   setPrintLoading(true)
+  //   try {
+  //     const response = await fetch("/api/print", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         noteId: activeNoteId,
+  //         customTemplate: isCustomTemplate
+  //           ? {
+  //               name: selectedTemplate?.name,
+  //               bgClass: selectedTemplate?.bgClass,
+  //               lineStyle: selectedTemplate?.lineStyle,
+  //               accentColor: selectedTemplate?.accentColor,
+  //               customImageUrl: selectedTemplate?.customImageUrl,
+  //             }
+  //           : null,
+  //       }),
+  //     })
 
-      if (!response.ok) {
-        console.error("Failed to generate PDF")
-        return
-      }
+  //     if (!response.ok) {
+  //       console.error("Failed to generate PDF")
+  //       return
+  //     }
 
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
+  //     const blob = await response.blob()
+  //     const url = URL.createObjectURL(blob)
 
-      if (printWindow) {
-        printWindow.location.href = url
-      } else {
-        const link = document.createElement("a")
-        link.href = url
-        link.target = "_blank"
-        link.rel = "noopener"
-        link.download = `note-${activeNoteId}.pdf`
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-      }
+  //     if (printWindow) {
+  //       printWindow.location.href = url
+  //     } else {
+  //       const link = document.createElement("a")
+  //       link.href = url
+  //       link.target = "_blank"
+  //       link.rel = "noopener"
+  //       link.download = `note-${activeNoteId}.pdf`
+  //       document.body.appendChild(link)
+  //       link.click()
+  //       link.remove()
+  //     }
 
-      // Revoke later so the new tab has time to load
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    } catch (error) {
-      console.error("Failed to download PDF:", error)
-    }
-    finally {
-      setPrintLoading(false)
-    }
+  //     // Revoke later so the new tab has time to load
+  //     window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  //   } catch (error) {
+  //     console.error("Failed to download PDF:", error)
+  //   }
+  //   finally {
+  //     setPrintLoading(false)
+  //   }
+  // }
+
+  const isStandalonePWA = () =>
+  window.matchMedia("(display-mode: standalone)").matches ||
+  (window.navigator as any).standalone === true;
+
+const isMobile = () =>
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  const fetchPdfBlob = async (payload: any) => {
+  const response = await fetch("/api/print", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to generate PDF");
   }
+
+  return await response.blob();
+};
+
+  const handlePrint = async () => {
+  if (!activeNoteId || isEditorOverflowing) return;
+
+  setPrintLoading(true);
+
+  try {
+    const blob = await fetchPdfBlob({
+      noteId: activeNoteId,
+      customTemplate: selectedTemplate?.isCustom
+        ? {
+            name: selectedTemplate?.name,
+            bgClass: selectedTemplate?.bgClass,
+            lineStyle: selectedTemplate?.lineStyle,
+            accentColor: selectedTemplate?.accentColor,
+            customImageUrl: selectedTemplate?.customImageUrl,
+          }
+        : null,
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    // 🔥 CASE 1: Installed PWA (most restrictive)
+    if (isStandalonePWA()) {
+      const file = new File([blob], `note-${activeNoteId}.pdf`, {
+        type: "application/pdf",
+      });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "Your Note PDF",
+        });
+      } else {
+        // fallback
+        window.open(url, "_blank");
+      }
+    }
+
+    // 📱 CASE 2: Mobile browser (not installed)
+    else if (isMobile()) {
+      window.open(url, "_blank");
+    }
+
+    // 💻 CASE 3: Desktop
+    else {
+      const newTab = window.open(url, "_blank");
+
+      // Optional: auto-trigger print after load
+      if (newTab) {
+        newTab.onload = () => {
+          try {
+            newTab.print();
+          } catch (e) {
+            console.warn("Print trigger failed");
+          }
+        };
+      }
+    }
+
+    // Cleanup
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    console.error("Print flow failed:", err);
+  } finally {
+    setPrintLoading(false);
+  }
+};
 
   // Show loading state while templates are loading
   if (templatesLoading || loadedTemplates.length === 0) {
