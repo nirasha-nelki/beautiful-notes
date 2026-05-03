@@ -179,7 +179,75 @@ const isMobile = () =>
   return await response.blob();
 };
 
-  const handlePrint = async () => {
+//   const handlePrint = async () => {
+//   if (!activeNoteId || isEditorOverflowing) return;
+
+//   setPrintLoading(true);
+
+//   try {
+//     const blob = await fetchPdfBlob({
+//       noteId: activeNoteId,
+//       customTemplate: selectedTemplate?.isCustom
+//         ? {
+//             name: selectedTemplate?.name,
+//             bgClass: selectedTemplate?.bgClass,
+//             lineStyle: selectedTemplate?.lineStyle,
+//             accentColor: selectedTemplate?.accentColor,
+//             customImageUrl: selectedTemplate?.customImageUrl,
+//           }
+//         : null,
+//     });
+
+//     const url = URL.createObjectURL(blob);
+
+//     // 🔥 CASE 1: Installed PWA (most restrictive)
+//     if (isStandalonePWA()) {
+//       const file = new File([blob], `note-${activeNoteId}.pdf`, {
+//         type: "application/pdf",
+//       });
+
+//       if (navigator.canShare && navigator.canShare({ files: [file] })) {
+//         await navigator.share({
+//           files: [file],
+//           title: "Your Note PDF",
+//         });
+//       } else {
+//         // fallback
+//         window.open(url, "_blank");
+//       }
+//     }
+
+//     // 📱 CASE 2: Mobile browser (not installed)
+//     else if (isMobile()) {
+//       window.open(url, "_blank");
+//     }
+
+//     // 💻 CASE 3: Desktop
+//     else {
+//       const newTab = window.open(url, "_blank");
+
+//       // Optional: auto-trigger print after load
+//       if (newTab) {
+//         newTab.onload = () => {
+//           try {
+//             newTab.print();
+//           } catch (e) {
+//             console.warn("Print trigger failed");
+//           }
+//         };
+//       }
+//     }
+
+//     // Cleanup
+//     setTimeout(() => URL.revokeObjectURL(url), 60000);
+//   } catch (err) {
+//     console.error("Print flow failed:", err);
+//   } finally {
+//     setPrintLoading(false);
+//   }
+// };
+
+const handlePrint = async () => {
   if (!activeNoteId || isEditorOverflowing) return;
 
   setPrintLoading(true);
@@ -199,34 +267,35 @@ const isMobile = () =>
     });
 
     const url = URL.createObjectURL(blob);
+    const fileName = `note-${activeNoteId}.pdf`;
 
     // 🔥 CASE 1: Installed PWA (most restrictive)
     if (isStandalonePWA()) {
-      const file = new File([blob], `note-${activeNoteId}.pdf`, {
-        type: "application/pdf",
-      });
+      const file = new File([blob], fileName, { type: "application/pdf" });
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "Your Note PDF",
-        });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Your Note PDF" });
       } else {
-        // fallback
-        window.open(url, "_blank");
+        triggerDownload(url, fileName);
       }
     }
 
-    // 📱 CASE 2: Mobile browser (not installed)
+    // 📱 CASE 2: Mobile browser — share sheet if available, else download
     else if (isMobile()) {
-      window.open(url, "_blank");
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        // iOS Safari / Android Chrome: opens native share sheet (Save to Files, etc.)
+        await navigator.share({ files: [file], title: "Your Note PDF" });
+      } else {
+        // Fallback: force download via anchor (works where window.open is blocked)
+        triggerDownload(url, fileName);
+      }
     }
 
     // 💻 CASE 3: Desktop
     else {
       const newTab = window.open(url, "_blank");
-
-      // Optional: auto-trigger print after load
       if (newTab) {
         newTab.onload = () => {
           try {
@@ -238,14 +307,27 @@ const isMobile = () =>
       }
     }
 
-    // Cleanup
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (err) {
-    console.error("Print flow failed:", err);
+    // navigator.share throws AbortError if user cancels — don't treat as failure
+    if ((err as DOMException)?.name !== "AbortError") {
+      console.error("Print flow failed:", err);
+    }
   } finally {
     setPrintLoading(false);
   }
 };
+
+// Hidden anchor download — works reliably on mobile where window.open() is blocked
+function triggerDownload(url: string, fileName: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 
   // Show loading state while templates are loading
   if (templatesLoading || loadedTemplates.length === 0) {
