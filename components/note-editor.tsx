@@ -1,24 +1,26 @@
 "use client"
 
 import type React from "react"
-import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from "react"
-import { X, GripVertical, ChevronLeft, ChevronRight, Plus, ImagePlus, Pen, Highlighter, Eraser, Slash, Dot } from "lucide-react"
+import { useRef, forwardRef, useImperativeHandle, useState, useEffect, useCallback } from "react"
+import { X, GripVertical, ImagePlus, Pen, Highlighter, Eraser, Dot, PenTool } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { FONT_CLASS_BY_STYLE, LINE_BACKGROUND_BY_STYLE } from "@/lib/note-styles"
 import { ImageBlock } from "@/types/image"
 import { PageContent } from "@/types/page"
 import { NoteEditorProps } from "@/types/noteeditor"
 import { useNoteEditor } from "@/hooks/useNoteEditor"
 import { useImageManager } from "@/hooks/useImageManager"
 import { useDrawing } from "@/hooks/useDrawing"
-import { set } from "react-hook-form"
-
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
-  function NoteEditor({ template: templateProp, fontStyle, initialPages }, ref) {
+  function NoteEditor({ template: templateProp, fontStyle, initialPages, onPagesChange, onOverflowChange }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
   const textColorInputRef = useRef<HTMLInputElement>(null)
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const lastOverflowRef = useRef<boolean | null>(null)
   const [expandLineWidth, setExpandLineWidth] = useState(false)
   const [textColor, setTextColor] = useState("#2b2b2b")
+  const [overflowingFlag, setOverflowingFlag] = useState(false)
   
   // Use default template if null
   const template = templateProp || {
@@ -34,14 +36,13 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     pages,
     setPages,
     currentPage,
+    setCurrentPage,
     currentPageData,
     setTitle,
     setContent,
-    addNewPage,
-    goToPage,
     getPages,
     updateCurrentPage,
-  } = useNoteEditor({ initialPages })
+  } = useNoteEditor({ initialPages, onChange: onPagesChange })
 
   // Expose getPages method via ref
   useImperativeHandle(ref, () => ({
@@ -50,6 +51,29 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
 
   // Get current page data - with safety check
   const { title = "", content = "", images = [], drawings = [] } = currentPageData || {}
+
+  const checkOverflow = useCallback(() => {
+    const textarea = contentTextareaRef.current
+    if (!textarea) return
+
+    const isOverflowing = textarea.scrollHeight > textarea.clientHeight + 2
+    if (lastOverflowRef.current === isOverflowing) return
+    lastOverflowRef.current = isOverflowing
+    onOverflowChange?.(isOverflowing)
+    setOverflowingFlag(isOverflowing)
+  }, [onOverflowChange])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      checkOverflow()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [checkOverflow, content, title, fontStyle, template?.id])
+
+  useEffect(() => {
+    window.addEventListener("resize", checkOverflow)
+    return () => window.removeEventListener("resize", checkOverflow)
+  }, [checkOverflow])
 
   // Image state updater function
   const setImages = (
@@ -114,28 +138,22 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   }
 
   const getFontClass = () => {
-    switch (fontStyle) {
-      case "handwriting":
-        return "font-[var(--font-handwriting)] text-2xl leading-relaxed"
-      case "serif":
-        return "font-serif text-lg leading-relaxed"
-      default:
-        return "font-sans text-base leading-relaxed"
-    }
+    return FONT_CLASS_BY_STYLE[fontStyle] ?? FONT_CLASS_BY_STYLE.sans
   }
 
   const getLineBackground = () => {
-    switch (template.lineStyle) {
-      case "lined":
-        return "bg-[linear-gradient(transparent_31px,#e8e0d5_31px)] bg-[length:100%_32px]"
-      case "dotted":
-        return "bg-[radial-gradient(circle,#d4c8b8_1px,transparent_1px)] bg-[length:20px_20px]"
-      case "grid":
-        return "bg-[linear-gradient(#e8e0d5_1px,transparent_1px),linear-gradient(90deg,#e8e0d5_1px,transparent_1px)] bg-[length:20px_20px]"
-      default:
-        return ""
-    }
+    return LINE_BACKGROUND_BY_STYLE[template.lineStyle] ?? ""
   }
+
+  const drawingColorPresets = [
+    "#2b2b2b",
+    "#6b4b3a",
+    "#8b7355",
+    "#b67d5a",
+    "#c89f6d",
+    "#7a8f7a",
+    "#7a8da6",
+  ]
 
   useEffect(() => {
     // Disable hand gesture to refresh the page on mobile when in drawing mode
@@ -154,16 +172,17 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
 
   return (
     <div className="flex flex-col h-full">
+      
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 bg-card bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2748%27%20height=%2748%27%20viewBox=%270%200%2048%2048%27%3E%3Ccircle%20cx=%271%27%20cy=%271%27%20r=%271%27%20fill=%27rgba(0,0,0,0.06)%27/%3E%3C/svg%3E')] bg-repeat bg-[length:48px_48px] border-b border-border">
+        <div className="flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-[#f2e9ff] via-[#e8dcff] to-[#e2d1ff] px-2.5 py-1 shadow-sm">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+            className="flex items-center justify-center h-8 w-8 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Add image"
           >
             <ImagePlus className="w-4 h-4" />
-            <span className="text-sm hidden sm:inline"></span>
           </button>
           <input
             ref={fileInputRef}
@@ -174,42 +193,35 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             className="hidden"
           />
           
-          <div className="w-px h-6 bg-border" />
+          <div className="w-px h-6 bg-border/70" />
           
           {/* Drawing Mode Toggle */}
           <button
             type="button"
             onClick={() => setIsDrawingMode(!isDrawingMode)}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors",
+              "flex items-center gap-2 h-8 px-3 rounded-full border border-border transition-colors",
               isDrawingMode 
                 ? "bg-primary text-primary-foreground" 
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
+                : "bg-card text-muted-foreground hover:text-foreground"
             )}
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 19l7-7 3 3-7 7-3-3z" />
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-              <path d="M2 2l7.586 7.586" />
-              <circle cx="11" cy="11" r="2" />
-            </svg>
-            {/* <span className="text-sm hidden sm:inline">Draw</span> */}
+            <PenTool className="w-4 h-4" />
           </button>
 
-          <div className="w-px h-6 bg-border" />
-
+          <div className="w-px h-6 bg-border/70" />
           <div className="relative">
             <button
               type="button"
               onClick={() => textColorInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-accent transition-colors"
+              className="flex items-center gap-2 h-8 px-3 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Change text color"
             >
               <span
                 className="w-4 h-4 rounded-full border border-border"
                 style={{ backgroundColor: textColor }}
               />
-              <span className="text-sm hidden sm:inline">Text color</span>
+              {/* <span className="text-sm hidden sm:inline">Text color</span> */}
             </button>
             <input
               ref={textColorInputRef}
@@ -224,41 +236,128 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         {/* Drawing Tools - Desktop (in toolbar) */}
         {isDrawingMode && (
           <div className="hidden sm:flex items-center gap-2">
-            
-            <select
-              value={drawingTool}
-              onChange={(e) => setDrawingTool(e.target.value as 'pen' | 'highlighter' | 'eraser')}
-              className="px-2 py-1 text-sm rounded bg-secondary border border-border"
-            >
-              <option value="pen">Pen</option>
-              <option value="highlighter">Highlighter</option>
-              <option value="eraser">Eraser</option>
-            </select>
-            
-            <input
-              type="color"
-              value={drawingColor}
-              onChange={(e) => setDrawingColor(e.target.value)}
-              className="w-8 h-8 rounded cursor-pointer"
-              disabled={drawingTool === 'eraser'}
-            />
-            
-            <select
-              value={strokeWidth}
-              onChange={(e) => setStrokeWidth(Number(e.target.value))}
-              className="px-2 py-1 text-sm rounded bg-secondary border border-border"
-            >
-              <option value="1">Thin</option>
-              <option value="2">Normal</option>
-              <option value="4">Medium</option>
-              <option value="8">Thick</option>
-              <option value="16">Bold</option>
-            </select>
-            
+            <div className="flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-[#f2e9ff] via-[#e8dcff] to-[#e2d1ff] px-2.5 py-1 shadow-sm">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setDrawingTool("pen")}
+                  className={cn(
+                    "h-8 w-8 rounded-full border border-border flex items-center justify-center transition-colors",
+                    drawingTool === "pen"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Pen tool"
+                >
+                  <Pen className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawingTool("highlighter")}
+                  className={cn(
+                    "h-8 w-8 rounded-full border border-border flex items-center justify-center transition-colors",
+                    drawingTool === "highlighter"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Highlighter tool"
+                >
+                  <Highlighter className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawingTool("eraser")}
+                  className={cn(
+                    "h-8 w-8 rounded-full border border-border flex items-center justify-center transition-colors",
+                    drawingTool === "eraser"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Eraser tool"
+                >
+                  <Eraser className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="w-px h-6 bg-border" />
+
+              <div className="flex items-center gap-1">
+                {drawingColorPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      if (drawingTool !== "eraser") {
+                        setDrawingColor(preset)
+                      }
+                    }}
+                    className={cn(
+                      "h-7 w-7 rounded-full border border-border transition-transform",
+                      drawingColor === preset && "ring-2 ring-primary/60",
+                      drawingTool === "eraser" && "opacity-40 cursor-not-allowed"
+                    )}
+                    style={{ backgroundColor: preset }}
+                    aria-label={`Preset color ${preset}`}
+                    disabled={drawingTool === "eraser"}
+                  />
+                ))}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (drawingTool !== "eraser") {
+                        const input = document.getElementById("drawing-color-desktop") as HTMLInputElement | null
+                        input?.click()
+                      }
+                    }}
+                    className={cn(
+                      "h-7 w-7 rounded-full border border-border shadow-inner transition-opacity",
+                      drawingTool === "eraser" && "opacity-40 cursor-not-allowed"
+                    )}
+                    aria-label="Custom drawing color"
+                    style={{ backgroundColor: drawingColor }}
+                    disabled={drawingTool === "eraser"}
+                  />
+                  <input
+                    id="drawing-color-desktop"
+                    type="color"
+                    value={drawingColor}
+                    onChange={(e) => setDrawingColor(e.target.value)}
+                    className="absolute left-0 top-0 h-7 w-7 cursor-pointer opacity-0"
+                    disabled={drawingTool === "eraser"}
+                  />
+                </div>
+              </div>
+
+              <div className="w-px h-6 bg-border" />
+
+              <div className="flex items-center gap-1">
+                {[1, 2, 4, 8, 16].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setStrokeWidth(size)}
+                    className={cn(
+                      "h-8 w-8 rounded-full border border-border flex items-center justify-center transition-colors",
+                      strokeWidth === size
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-label={`Stroke width ${size}`}
+                  >
+                    <span
+                      className="block rounded-full bg-current"
+                      style={{ width: size, height: size }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <button
               type="button"
               onClick={clearDrawings}
-              className="px-3 py-1.5 text-sm rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+              className="px-3 py-1.5 text-sm rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
             >
               Clear
             </button>
@@ -272,53 +371,71 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           />
         )}
       </div>
+      
 
       {/* Drawing Tools - Mobile (floating right) */}
       {isDrawingMode && (
-        <div className="sm:hidden fixed right-2 top-40 z-[10] bg-card/55 backdrop-blur-sm rounded-lg shadow-lg border border-border p-2 flex flex-col gap-2">
+        <div className="sm:hidden fixed right-2 top-40 z-[10] rounded-2xl shadow-lg border border-border p-2 flex flex-col gap-2 bg-gradient-to-b from-[#f2e9ff] via-[#e8dcff] to-[#e2d1ff]">
           {/* <div className="w-px h-6 bg-border" /> */}
-              < Pen className={cn(
-                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
-                drawingTool === 'pen' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
-              )} 
-              onClick={() => setDrawingTool('pen')}
-            />
-            <Highlighter className={cn(
-                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
-                drawingTool === 'highlighter' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
-              )} 
-              onClick={() => setDrawingTool('highlighter')}
-            />
-
-            <Eraser className={cn(
-                "w-10 h-10 cursor-pointer border border-border rounded-md p-2",
-                drawingTool === 'eraser' ? 'bg-muted border backdrop-blur-sm' : 'text-muted-foreground hover:text-foreground'
-              )} 
-              onClick={() => setDrawingTool('eraser')}
-            />
-
-          
-          <input
-            type="color"
-            value={drawingColor}
-            onChange={(e) => setDrawingColor(e.target.value)}
-            className="w-10 h-10 rounded-full cursor-pointer"
-            disabled={drawingTool === 'eraser'}
+          <Pen className={cn(
+            "w-10 h-10 cursor-pointer border border-border rounded-full p-2 transition-colors",
+            drawingTool === "pen" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setDrawingTool("pen")}
           />
+          <Highlighter className={cn(
+            "w-10 h-10 cursor-pointer border border-border rounded-full p-2 transition-colors",
+            drawingTool === "highlighter" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setDrawingTool("highlighter")}
+          />
+
+          <Eraser className={cn(
+            "w-10 h-10 cursor-pointer border border-border rounded-full p-2 transition-colors",
+            drawingTool === "eraser" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
+          )}
+          onClick={() => setDrawingTool("eraser")}
+          />
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                if (drawingTool !== "eraser") {
+                  const input = document.getElementById("drawing-color-mobile") as HTMLInputElement | null
+                  input?.click()
+                }
+              }}
+              className={cn(
+                "w-10 h-10 rounded-full border border-border shadow-inner",
+                drawingTool === "eraser" && "opacity-40 cursor-not-allowed"
+              )}
+              aria-label="Drawing color"
+              style={{ backgroundColor: drawingColor }}
+              disabled={drawingTool === "eraser"}
+            />
+            <input
+              id="drawing-color-mobile"
+              type="color"
+              value={drawingColor}
+              onChange={(e) => setDrawingColor(e.target.value)}
+              className="absolute left-0 top-0 h-10 w-10 cursor-pointer opacity-0"
+              disabled={drawingTool === "eraser"}
+            />
+          </div>
 
           {
             !expandLineWidth &&
-            < Dot className={cn(
-                "w-10 h-10 cursor-pointer border border-border text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-2 stroke-[5]",
-                // drawingTool === 'pen' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              )} 
-              onClick={() => setExpandLineWidth(!expandLineWidth)}
+            <Dot className={cn(
+              "w-10 h-10 cursor-pointer border border-border text-muted-foreground hover:text-foreground rounded-full p-2 stroke-[5] bg-card",
+            )}
+            onClick={() => setExpandLineWidth(!expandLineWidth)}
             />}
 
             {
               expandLineWidth && (
                 
-                <div className="flex flex-col items-center mt-2 bg-card/90 p-2 rounded-lg border border-border shadow-md">
+                <div className="flex flex-col items-center mt-2 bg-card/90 p-2 rounded-2xl border border-border shadow-md">
 
                 <button
                   type="button"
@@ -377,12 +494,14 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           <button
             type="button"
             onClick={clearDrawings}
-            className="p-2 text-xs rounded bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+            className="h-10 w-10 rounded-full flex items-center justify-center bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
           >
             <X className="w-4 h-4"/>
           </button>
         </div>
       )}
+
+      
 
       {/* Editor Area */}
       <div
@@ -397,12 +516,11 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        {/* Custom Template Background */}
         {template.isCustom && template.customImageUrl && (
           <img
             src={template.customImageUrl || "/placeholder.svg"}
             alt="Custom template background"
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover object-top"
           />
         )}
 
@@ -434,34 +552,30 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         {/* Note Content */}
         <div className={cn(
           "p-6 h-full flex flex-col relative z-[1]",
-          template.isCustom && "pt-20 pb-24 px-12",
           isDrawingMode && "pointer-events-none"
         )}>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={template.isCustom ? "" : "Untitled Note..."}
+            placeholder="Untitled Note..."
             className={cn(
-              "w-full bg-transparent border-none outline-none mb-4",
-              template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/50",
+              "w-full bg-transparent border-none outline-none mb-4 placeholder:text-muted-foreground/50",
               getFontClass(),
               fontStyle === "handwriting"
                 ? "text-3xl"
-                : "text-2xl font-semibold",
-              template.isCustom && "text-foreground/80"
+                : "text-2xl font-semibold"
             )}
             style={{ color: textColor }}
           />
           <textarea
+            ref={contentTextareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={template.isCustom ? "" : "Start writing your thoughts..."}
+            placeholder="Start writing your thoughts..."
             className={cn(
-              "w-full flex-1 bg-transparent border-none outline-none resize-none",
-              template.isCustom ? "placeholder:text-transparent" : "placeholder:text-muted-foreground/40",
-              getFontClass(),
-              template.isCustom && "text-foreground/80"
+              "w-full flex-1 bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/40",
+              getFontClass()
             )}
             style={{ color: textColor }}
           />
@@ -486,7 +600,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
               <img
                 src={img.url || "/placeholder.svg"}
                 alt="Note attachment"
-                className="w-36 h-auto rounded-xl shadow-lg border-4 border-white object-cover max-h-40"
+                className="w-36 h-auto rounded-xl shadow-lg border-4 border-white object-contain"
               />
               <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                 <button
@@ -503,59 +617,26 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             </div>
           </div>
         ))}
-
-        {/* Page Navigation for Custom Templates */}
-        {template.isCustom && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-border z-[3]">
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 0}
-              className="p-1.5 rounded-full hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-1.5 px-2">
-              {pages.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goToPage(i)}
-                  className={cn(
-                    "w-2 h-2 rounded-full transition-all",
-                    i === currentPage
-                      ? "bg-primary scale-125"
-                      : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                  )}
-                  aria-label={`Go to page ${i + 1}`}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === pages.length - 1}
-              className="p-1.5 rounded-full hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              aria-label="Next page"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <div className="w-px h-4 bg-border mx-1" />
-            <button
-              type="button"
-              onClick={addNewPage}
-              className="p-1.5 rounded-full hover:bg-accent transition-colors text-primary"
-              aria-label="Add new page"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <span className="text-xs text-muted-foreground ml-1">
-              {currentPage + 1}/{pages.length}
-            </span>
-          </div>
-        )}
+        
+        
       </div>
+      {
+        overflowingFlag && (
+          <div className="flex flex-row bg-red-50 w-full gap-2 border-t border-red-200 float-right px-1 py-1">
+            <div 
+            className="flex items-center border border-red-200 bg-red-100 px-0.5 py-0.5 cusror pointer rounded-full"
+            onClick={() => setOverflowingFlag(!overflowingFlag)}
+            >
+              <X className="w-3 h-3 text-red-500" />
+            </div>
+            <span className="text-xs w-full text-red-500 text-left mt-1">Note is overflowing - reduce content until it fits without scrolling to enable printing.</span>
+            
+          </div>
+        )
+      }
+      
+      
     </div>
+    
   )
 })

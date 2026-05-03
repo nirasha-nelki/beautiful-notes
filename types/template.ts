@@ -1,8 +1,10 @@
+export type LineStyle = "plain" | "lined" | "dotted" | "grid"
+
 export interface Template {
   id: number
   name: string
   bgClass: string
-  lineStyle: "plain" | "lined" | "dotted" | "grid"
+  lineStyle: LineStyle
   accentColor: string
   preview: string
   isCustom?: boolean

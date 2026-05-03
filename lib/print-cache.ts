@@ -1,7 +1,9 @@
+import type { LineStyle } from "@/types/template"
+
 export type CustomTemplateData = {
   name?: string
   bgClass?: string
-  lineStyle?: string
+  lineStyle?: LineStyle
   accentColor?: string
   customImageUrl?: string
 }

@@ -11,7 +11,7 @@ interface UseDrawingProps {
 export function useDrawing({ drawings, onDrawingsChange, editorRef }: UseDrawingProps) {
   const [isDrawingMode, setIsDrawingMode] = useState(false)
   const [drawingTool, setDrawingTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen')
-  const [drawingColor, setDrawingColor] = useState('#000000')
+  const [drawingColor, setDrawingColor] = useState("#8b6aa6")
   const [strokeWidth, setStrokeWidth] = useState(2)
   const [isDrawing, setIsDrawing] = useState(false)
   const [currentStroke, setCurrentStroke] = useState<DrawingPoint[]>([])
