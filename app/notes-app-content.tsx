@@ -100,6 +100,10 @@ export default function NotesAppContent() {
     if (isEditorOverflowing) return
 
     const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
+
+    // Open a tab synchronously to avoid popup blockers
+    const printWindow = window.open("", "_blank")
+
     setPrintLoading(true)
     try {
       const response = await fetch("/api/print", {
@@ -128,13 +132,22 @@ export default function NotesAppContent() {
 
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `note-${activeNoteId}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+
+      if (printWindow) {
+        printWindow.location.href = url
+      } else {
+        const link = document.createElement("a")
+        link.href = url
+        link.target = "_blank"
+        link.rel = "noopener"
+        link.download = `note-${activeNoteId}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+      }
+
+      // Revoke later so the new tab has time to load
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (error) {
       console.error("Failed to download PDF:", error)
     }
@@ -249,6 +262,12 @@ export default function NotesAppContent() {
           </button>
         </div>
       </header>
+
+      {activeNoteId && isEditorOverflowing && (
+        <div className="px-6 py-2 border-b border-border/40 bg-accent/30 text-xs text-muted-foreground">
+          Printing is disabled while the note is scrollable. Reduce content until it fits without scrolling.
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden print-area">

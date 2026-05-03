@@ -56,7 +56,8 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
     const textarea = contentTextareaRef.current
     if (!textarea) return
 
-    const isOverflowing = textarea.scrollHeight > textarea.clientHeight + 2
+    const overflowDelta = textarea.scrollHeight - textarea.clientHeight
+    const isOverflowing = overflowDelta > 8
     if (lastOverflowRef.current === isOverflowing) return
     lastOverflowRef.current = isOverflowing
     onOverflowChange?.(isOverflowing)
@@ -73,6 +74,18 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
   useEffect(() => {
     window.addEventListener("resize", checkOverflow)
     return () => window.removeEventListener("resize", checkOverflow)
+  }, [checkOverflow])
+
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+
+    vv.addEventListener("resize", checkOverflow)
+    vv.addEventListener("scroll", checkOverflow)
+    return () => {
+      vv.removeEventListener("resize", checkOverflow)
+      vv.removeEventListener("scroll", checkOverflow)
+    }
   }, [checkOverflow])
 
   // Image state updater function
