@@ -269,50 +269,39 @@ const handlePrint = async () => {
     const url = URL.createObjectURL(blob);
     const fileName = `note-${activeNoteId}.pdf`;
 
-    // 🔥 CASE 1: Installed PWA (most restrictive)
-    if (isStandalonePWA()) {
-      const file = new File([blob], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare?.({ files: [file] })) {
+    const tryShare = async (blob: Blob): Promise<boolean> => {
+      try {
+        const file = new File([blob], fileName, { type: "application/pdf" });
+        if (!navigator.canShare?.({ files: [file] })) return false;
         await navigator.share({ files: [file], title: "Your Note PDF" });
-      } else {
+        return true;
+      } catch (err) {
+        const name = (err as DOMException)?.name;
+        // AbortError = user dismissed share sheet (not a failure)
+        // NotAllowedError = gesture chain broken or platform denied
+        if (name === "AbortError") return true; 
+        return false; // anything else → fall through to download
+      }
+    };
+
+    if (isStandalonePWA() || isMobile()) {
+      const shared = await tryShare(blob);
+      if (!shared) {
         triggerDownload(url, fileName);
       }
-    }
-
-    // 📱 CASE 2: Mobile browser — share sheet if available, else download
-    else if (isMobile()) {
-      const file = new File([blob], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare?.({ files: [file] })) {
-        // iOS Safari / Android Chrome: opens native share sheet (Save to Files, etc.)
-        await navigator.share({ files: [file], title: "Your Note PDF" });
-      } else {
-        // Fallback: force download via anchor (works where window.open is blocked)
-        triggerDownload(url, fileName);
-      }
-    }
-
-    // 💻 CASE 3: Desktop
-    else {
+    } else {
+      // Desktop
       const newTab = window.open(url, "_blank");
       if (newTab) {
         newTab.onload = () => {
-          try {
-            newTab.print();
-          } catch (e) {
-            console.warn("Print trigger failed");
-          }
+          try { newTab.print(); } catch (e) { console.warn("Print trigger failed"); }
         };
       }
     }
 
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (err) {
-    // navigator.share throws AbortError if user cancels — don't treat as failure
-    if ((err as DOMException)?.name !== "AbortError") {
-      console.error("Print flow failed:", err);
-    }
+    console.error("Print flow failed:", err);
   } finally {
     setPrintLoading(false);
   }
