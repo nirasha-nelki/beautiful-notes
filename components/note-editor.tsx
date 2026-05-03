@@ -13,11 +13,14 @@ import { useImageManager } from "@/hooks/useImageManager"
 import { useDrawing } from "@/hooks/useDrawing"
 
 export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEditorProps>(
-  function NoteEditor({ template: templateProp, fontStyle, initialPages, onPagesChange }, ref) {
+  function NoteEditor({ template: templateProp, fontStyle, initialPages, onPagesChange, onOverflowChange }, ref) {
   const editorRef = useRef<HTMLDivElement>(null)
   const textColorInputRef = useRef<HTMLInputElement>(null)
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const lastOverflowRef = useRef<boolean | null>(null)
   const [expandLineWidth, setExpandLineWidth] = useState(false)
   const [textColor, setTextColor] = useState("#2b2b2b")
+  const [overflowingFlag, setOverflowingFlag] = useState(false)
   
   // Use default template if null
   const template = templateProp || {
@@ -48,6 +51,29 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
 
   // Get current page data - with safety check
   const { title = "", content = "", images = [], drawings = [] } = currentPageData || {}
+
+  const checkOverflow = useCallback(() => {
+    const textarea = contentTextareaRef.current
+    if (!textarea) return
+
+    const isOverflowing = textarea.scrollHeight > textarea.clientHeight + 2
+    if (lastOverflowRef.current === isOverflowing) return
+    lastOverflowRef.current = isOverflowing
+    onOverflowChange?.(isOverflowing)
+    setOverflowingFlag(isOverflowing)
+  }, [onOverflowChange])
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      checkOverflow()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [checkOverflow, content, title, fontStyle, template?.id])
+
+  useEffect(() => {
+    window.addEventListener("resize", checkOverflow)
+    return () => window.removeEventListener("resize", checkOverflow)
+  }, [checkOverflow])
 
   // Image state updater function
   const setImages = (
@@ -146,6 +172,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
 
   return (
     <div className="flex flex-col h-full">
+      
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-3 bg-card bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2748%27%20height=%2748%27%20viewBox=%270%200%2048%2048%27%3E%3Ccircle%20cx=%271%27%20cy=%271%27%20r=%271%27%20fill=%27rgba(0,0,0,0.06)%27/%3E%3C/svg%3E')] bg-repeat bg-[length:48px_48px] border-b border-border">
         <div className="flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-[#f2e9ff] via-[#e8dcff] to-[#e2d1ff] px-2.5 py-1 shadow-sm">
@@ -183,7 +210,6 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           </button>
 
           <div className="w-px h-6 bg-border/70" />
-
           <div className="relative">
             <button
               type="button"
@@ -345,6 +371,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
           />
         )}
       </div>
+      
 
       {/* Drawing Tools - Mobile (floating right) */}
       {isDrawingMode && (
@@ -474,6 +501,8 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
         </div>
       )}
 
+      
+
       {/* Editor Area */}
       <div
         ref={editorRef}
@@ -540,6 +569,7 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             style={{ color: textColor }}
           />
           <textarea
+            ref={contentTextareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your thoughts..."
@@ -587,7 +617,26 @@ export const NoteEditor = forwardRef<{ getPages: () => PageContent[] }, NoteEdit
             </div>
           </div>
         ))}
+        
+        
       </div>
+      {
+        overflowingFlag && (
+          <div className="flex flex-row bg-red-50 w-full gap-2 border-t border-red-200 float-right px-1 py-1">
+            <div 
+            className="flex items-center border border-red-200 bg-red-100 px-0.5 py-0.5 cusror pointer rounded-full"
+            onClick={() => setOverflowingFlag(!overflowingFlag)}
+            >
+              <X className="w-3 h-3 text-red-500" />
+            </div>
+            <span className="text-xs w-full text-red-500 text-left mt-1">Note is overflowing - reduce content until it fits without scrolling to enable printing.</span>
+            
+          </div>
+        )
+      }
+      
+      
     </div>
+    
   )
 })

@@ -7,58 +7,6 @@ import { Check, Upload, X, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Template, TemplatePickerProps } from "@/types/template"
 
-// export const templates: Template[] = [
-//   {
-//     id: "cream",
-//     name: "Vintage Cream",
-//     bgClass: "bg-[#faf8f3]",
-//     lineStyle: "lined",
-//     accentColor: "#8b7355",
-//     preview: "Warm cream paper with subtle lines",
-//   },
-//   {
-//     id: "blush",
-//     name: "Soft Blush",
-//     bgClass: "bg-[#fdf2f4]",
-//     lineStyle: "dotted",
-//     accentColor: "#c08b8b",
-//     preview: "Delicate pink with dot pattern",
-//   },
-//   {
-//     id: "sage",
-//     name: "Garden Sage",
-//     bgClass: "bg-[#f2f5f0]",
-//     lineStyle: "plain",
-//     accentColor: "#6b8e6b",
-//     preview: "Fresh green, clean canvas",
-//   },
-//   {
-//     id: "lavender",
-//     name: "Misty Lavender",
-//     bgClass: "bg-[#f5f3f7]",
-//     lineStyle: "grid",
-//     accentColor: "#9b8bb4",
-//     preview: "Soft purple with grid layout",
-//   },
-//   {
-//     id: "sky",
-//     name: "Morning Sky",
-//     bgClass: "bg-[#f0f5f9]",
-//     lineStyle: "lined",
-//     accentColor: "#7a9eb8",
-//     preview: "Serene blue with lines",
-//   },
-//   {
-//     id: "peach",
-//     name: "Warm Peach",
-//     bgClass: "bg-[#fef5ed]",
-//     lineStyle: "dotted",
-//     accentColor: "#d4a574",
-//     preview: "Cozy peach with dots",
-//   },
-// ]
-
-
 
 export function TemplatePicker({
   selectedTemplate,

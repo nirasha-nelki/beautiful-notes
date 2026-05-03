@@ -19,6 +19,7 @@ export default function NotesAppContent() {
   const [selectedFont, setSelectedFont] = useState<FontStyle>("handwriting")
   const [showSettings, setShowSettings] = useState(false)
   const [printLoading, setPrintLoading] = useState(false)
+  const [isEditorOverflowing, setIsEditorOverflowing] = useState(false)
 
   // Load custom templates from localStorage on mount
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function NotesAppContent() {
 
   const handlePrint = async () => {
     if (!activeNoteId) return
+    if (isEditorOverflowing) return
 
     const isCustomTemplate = Boolean(selectedTemplate?.isCustom)
     setPrintLoading(true)
@@ -207,7 +209,17 @@ export default function NotesAppContent() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium hover:bg-accent transition-all duration-200"
+                disabled={printLoading || isEditorOverflowing}
+                // title={
+                //   isEditorOverflowing
+                //     ? "Printing is disabled while the note is scrollable. Reduce content until it fits without scrolling."
+                //     : "Print note"
+                // }
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium transition-all duration-200",
+                  "hover:bg-accent",
+                  "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-secondary"
+                )}
                 aria-label="Print note"
               >
                 {
@@ -220,6 +232,11 @@ export default function NotesAppContent() {
                 {/* <Printer className="w-4 h-4" /> */}
                 <span className="hidden sm:inline">Print</span>
               </button>
+              {/* {isEditorOverflowing && (
+                <span className="hidden lg:inline text-xs text-muted-foreground max-w-[320px] text-red-500 bg-red-50 px-2 py-1 rounded-md">
+                  To print, make sure the note fits without scrolling.
+                </span>
+              )} */}
             </>
           )}
           <button
@@ -242,6 +259,8 @@ export default function NotesAppContent() {
           fontStyle={selectedFont}
           initialPages={activeNoteId ? notes.find(n => n.id === activeNoteId)?.pages : undefined}
           onPagesChange={handleEditorPagesChange}
+          onOverflowChange={setIsEditorOverflowing}
+
         />
       </main>
 
@@ -354,7 +373,7 @@ export default function NotesAppContent() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <div className="w-1 h-1 rounded-full bg-primary/60 mt-2" />
-                  <span>Custom templates support multiple pages</span>
+                  <span>Printing is enabled only when your note fits without scrolling</span>
                 </li>
               </ul>
             </div>

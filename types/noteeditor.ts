@@ -15,6 +15,8 @@ export interface NoteEditorProps {
   fontStyle: FontStyle
   initialPages?: PageContent[]
   onPagesChange?: (pages: PageContent[]) => void
+  onOverflowChange?: (isOverflowing: boolean) => void
+  
 }
 
 export interface UseNoteEditorProps {
